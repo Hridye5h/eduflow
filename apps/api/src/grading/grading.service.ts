@@ -3,6 +3,7 @@ import { OutboxKind, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProvenanceService } from '../provenance/provenance.service';
 import { ConsentService, ConsentPurpose } from '../consent/consent.service';
+import { LlmService } from '../llm/llm.service';
 import type { WhatsAppSendInput } from '../whatsapp/whatsapp-sender.port';
 import { ScoreItem, SheetScore, scoreSheet } from './scoring';
 
@@ -20,6 +21,7 @@ export class GradingService {
     private readonly prisma: PrismaService,
     private readonly provenance: ProvenanceService,
     private readonly consent: ConsentService,
+    private readonly llm: LlmService,
   ) {}
 
   /** Persist a graded sheet. Scores computed deterministically; bad input throws. */
@@ -55,7 +57,14 @@ export class GradingService {
     await this.consent.assertGranted(sheet.studentId, ConsentPurpose.AI_TEST_REPORTS);
 
     const score = scoreSheet(sheet.items as unknown as ScoreItem[]);
-    const body = this.buildReportBody(sheet.testName, score);
+    const template = this.buildReportBody(sheet.testName, score);
+    // The LLM only phrases the narrative; the deterministic numbers are passed in
+    // and must not change (the teacher's HITL approval is the safety net). Falls
+    // back to the exact template if no LLM is configured.
+    const body = await this.llm.generate(
+      `You are a coaching teacher writing a brief, warm parent note in simple English + Hindi. Use EXACTLY the numbers below — never change a score. Add one encouraging line and one concrete focus tip. Keep the final AI-assisted disclosure line.\n\n${template}`,
+      { language: 'hinglish', fallback: template, maxTokens: 320 },
+    );
     const stamp = await this.provenance.stamp({
       schoolId: sheet.schoolId,
       artefactType: 'test_report',

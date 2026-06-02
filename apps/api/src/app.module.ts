@@ -28,6 +28,7 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { DunningModule } from './dunning/dunning.module';
 import { RazorpayModule } from './razorpay/razorpay.module';
 import { GradingModule } from './grading/grading.module';
+import { LlmModule } from './llm/llm.module';
 import { TestHelpersModule } from './_test-helpers/test-helpers.module';
 
 const testHelpers = process.env.ENABLE_TEST_HELPERS === 'true' ? [TestHelpersModule] : [];
@@ -38,6 +39,7 @@ const testHelpers = process.env.ENABLE_TEST_HELPERS === 'true' ? [TestHelpersMod
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ScheduleModule.forRoot(),
     PrismaModule,
+    LlmModule,
     HealthModule,
     EmailModule,
     UploadsModule,

@@ -10,6 +10,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant-context';
 import { ProvenanceService } from '../provenance/provenance.service';
+import { LlmService } from '../llm/llm.service';
 import type { WhatsAppSendInput } from '../whatsapp/whatsapp-sender.port';
 import { DUNNING, TOTAL_STAGES } from './dunning.config';
 
@@ -32,6 +33,7 @@ export class DunningService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly provenance: ProvenanceService,
+    private readonly llm: LlmService,
   ) {}
 
   /** Open a dunning run for an overdue fee. Idempotent per (feePaymentId). */
@@ -197,7 +199,17 @@ export class DunningService {
 
   /** Build copy, stamp provenance, queue the send, advance the run — atomically. */
   private async send(run: DunningRun, stageNo: number, action: DunningAction): Promise<void> {
-    const text = this.buildMessage(run, stageNo);
+    const template = this.buildMessage(run, stageNo);
+    // Stages 1–3 get warm Hinglish phrasing via the LLM; the legal-tone stages
+    // 4–5 stay on the deterministic template (no model drift). Falls back to the
+    // template if no LLM is configured or the call fails.
+    const text =
+      stageNo <= 3
+        ? await this.llm.generate(
+            `Rewrite this fee reminder for an Indian parent in warm, respectful Hinglish. Keep the amount, the due date, the UPI mention, the AI-disclosure line, and "Reply STOP". 2–3 short lines.\n\n${template}`,
+            { language: 'hinglish', fallback: template, maxTokens: 220 },
+          )
+        : template;
     // Provenance stamp (no network) before the write — it IS AI-assisted copy.
     await this.provenance.stamp({
       schoolId: run.schoolId,

@@ -7,6 +7,7 @@ import { ProvenanceService } from '../provenance/provenance.service';
 import { ConsentService, ConsentPurpose } from '../consent/consent.service';
 import { DigilockerVerifier } from '../consent/verifiers/digilocker.verifier';
 import { PhoneOtpVerifier } from '../consent/verifiers/phone-otp.verifier';
+import { LlmService } from '../llm/llm.service';
 import { GradingService } from './grading.service';
 
 const hasDb = !!process.env.DATABASE_URL;
@@ -15,7 +16,7 @@ const d = hasDb ? describe : describe.skip;
 d('GradingService (consent-gated, provenance-stamped, HITL)', () => {
   const prisma = new PrismaService();
   const consent = new ConsentService(prisma, new DigilockerVerifier(), new PhoneOtpVerifier());
-  const svc = new GradingService(prisma, new ProvenanceService(prisma), consent);
+  const svc = new GradingService(prisma, new ProvenanceService(prisma), consent, new LlmService());
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   let schoolId = '';
   let studentId = '';

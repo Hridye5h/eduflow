@@ -23,16 +23,30 @@ export const OCR_PORT = Symbol('OCR_PORT');
 export class SarvamVisionOcr implements OcrPort {
   private readonly logger = new Logger(SarvamVisionOcr.name);
 
-  async recognizeDevanagari(_image: Buffer): Promise<OcrResult> {
-    const configured = !!process.env.SARVAM_API_KEY;
-    if (!configured) {
+  async recognizeDevanagari(image: Buffer): Promise<OcrResult> {
+    const key = process.env.SARVAM_API_KEY;
+    const url = process.env.SARVAM_OCR_URL; // exact endpoint set per Sarvam docs
+    if (!key || !url) {
       if (process.env.NODE_ENV === 'production') {
-        throw new NotImplementedException('Sarvam Vision OCR not configured');
+        throw new NotImplementedException('Sarvam Vision OCR not configured (SARVAM_API_KEY + SARVAM_OCR_URL)');
       }
       this.logger.warn('Sarvam Vision OCR STUB — not for production');
       return { text: '', confidence: 0 };
     }
-    // TODO: POST image to Sarvam Vision; return transcript + confidence.
-    throw new NotImplementedException('Sarvam Vision OCR not yet implemented');
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 30_000);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'api-subscription-key': key },
+        body: JSON.stringify({ image: image.toString('base64'), language: 'hi' }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new Error(`sarvam-vision ${res.status}: ${await res.text()}`);
+      const json = (await res.json()) as { text?: string; transcript?: string; confidence?: number };
+      return { text: json.text ?? json.transcript ?? '', confidence: json.confidence ?? 0.8 };
+    } finally {
+      clearTimeout(t);
+    }
   }
 }

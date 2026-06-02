@@ -33,15 +33,45 @@ export class MetaCloudSender implements WhatsAppSender {
   private readonly logger = new Logger(MetaCloudSender.name);
 
   async send(schoolId: string, input: WhatsAppSendInput): Promise<WhatsAppSendResult> {
-    const configured = !!process.env.WHATSAPP_TOKEN;
-    if (!configured) {
+    const token = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    if (!token || !phoneNumberId) {
       if (process.env.NODE_ENV === 'production') {
         throw new NotImplementedException('Meta Cloud API sender not configured');
       }
       this.logger.warn(`WhatsApp send STUB → ${input.toPhone} (school ${schoolId})`);
       return { provider: 'noop' };
     }
-    // TODO: POST to graph.facebook.com /{phoneNumberId}/messages with the template.
-    throw new NotImplementedException('Meta Cloud API send not yet implemented');
+
+    const body = input.template
+      ? {
+          messaging_product: 'whatsapp',
+          to: input.toPhone,
+          type: 'template',
+          template: {
+            name: input.template.name,
+            language: { code: input.template.language },
+            components: input.template.variables?.length
+              ? [{ type: 'body', parameters: input.template.variables.map((v) => ({ type: 'text', text: v })) }]
+              : [],
+          },
+        }
+      : { messaging_product: 'whatsapp', to: input.toPhone, type: 'text', text: { body: input.text ?? '' } };
+
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20_000);
+    try {
+      const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new Error(`meta ${res.status}: ${await res.text()}`);
+      const json = (await res.json()) as { messages?: Array<{ id?: string }> };
+      return { provider: 'meta', providerMessageId: json.messages?.[0]?.id };
+    } finally {
+      clearTimeout(t);
+    }
   }
 }
