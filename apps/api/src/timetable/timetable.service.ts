@@ -16,18 +16,18 @@ export class TimetableService {
   constructor(private prisma: PrismaService) {}
 
   async getForSection(schoolId: string, sectionId: string) {
-    const section = await this.prisma.section.findFirst({
+    const section = await this.prisma.db.section.findFirst({
       where: { id: sectionId, schoolId },
       include: { class: true },
     });
     if (!section) throw new NotFoundException('Section not found');
 
-    let tt = await this.prisma.timetable.findUnique({
+    let tt = await this.prisma.db.timetable.findUnique({
       where: { sectionId },
       include: { periods: { include: { subject: true } } },
     });
     if (!tt) {
-      tt = await this.prisma.timetable.create({
+      tt = await this.prisma.db.timetable.create({
         data: { schoolId, sectionId },
         include: { periods: { include: { subject: true } } },
       });
@@ -48,9 +48,9 @@ export class TimetableService {
       });
     }
 
-    await this.prisma.$transaction([
-      this.prisma.timetablePeriod.deleteMany({ where: { timetableId: timetable.id } }),
-      this.prisma.timetablePeriod.createMany({
+    await this.prisma.runInTenantTx(async (tx) => {
+      await tx.timetablePeriod.deleteMany({ where: { timetableId: timetable.id } });
+      await tx.timetablePeriod.createMany({
         data: periods.map((p) => ({
           timetableId: timetable.id,
           dayOfWeek: p.dayOfWeek,
@@ -60,8 +60,8 @@ export class TimetableService {
           subjectId: p.subjectId ?? null,
           teacherId: p.teacherId ?? null,
         })),
-      }),
-    ]);
+      });
+    });
 
     return this.getForSection(schoolId, sectionId);
   }
@@ -84,7 +84,7 @@ export class TimetableService {
     const teacherIds = [...new Set(periods.map((p) => p.teacherId).filter(Boolean) as string[])];
     if (!teacherIds.length) return overlaps;
 
-    const others = await this.prisma.timetablePeriod.findMany({
+    const others = await this.prisma.db.timetablePeriod.findMany({
       where: {
         teacherId: { in: teacherIds },
         timetable: { schoolId, sectionId: { not: sectionId } },
@@ -120,18 +120,18 @@ export class TimetableService {
     substituteId: string,
     reason?: string,
   ) {
-    const period = await this.prisma.timetablePeriod.findFirst({
+    const period = await this.prisma.db.timetablePeriod.findFirst({
       where: { id: periodId, timetable: { schoolId } },
     });
     if (!period) throw new NotFoundException('Period not found');
-    const sub = await this.prisma.user.findFirst({
+    const sub = await this.prisma.db.user.findFirst({
       where: { id: substituteId, schoolId, role: Role.TEACHER, isActive: true },
     });
     if (!sub) throw new BadRequestException('Substitute teacher not found');
 
     const day = new Date(date);
     day.setUTCHours(0, 0, 0, 0);
-    return this.prisma.timetableSubstitution.upsert({
+    return this.prisma.db.timetableSubstitution.upsert({
       where: { periodId_date: { periodId, date: day } },
       update: { substituteId, reason },
       create: { periodId, date: day, substituteId, reason },
@@ -140,7 +140,7 @@ export class TimetableService {
 
   /** For students/parents — read-only view. */
   async forStudent(schoolId: string, studentId: string) {
-    const student = await this.prisma.user.findFirst({
+    const student = await this.prisma.db.user.findFirst({
       where: { id: studentId, schoolId, role: Role.STUDENT },
       select: { sectionId: true },
     });

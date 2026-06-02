@@ -22,10 +22,10 @@ export class MarksService {
     },
   ) {
     const year = await this.currentYear(schoolId);
-    const cls = await this.prisma.class.findFirst({ where: { id: data.classId, schoolId } });
+    const cls = await this.prisma.db.class.findFirst({ where: { id: data.classId, schoolId } });
     if (!cls) throw new BadRequestException('Class not in this school');
 
-    return this.prisma.exam.create({
+    return this.prisma.db.exam.create({
       data: {
         schoolId,
         academicYearId: year.id,
@@ -41,7 +41,7 @@ export class MarksService {
   }
 
   async listExams(schoolId: string, classId?: string) {
-    return this.prisma.exam.findMany({
+    return this.prisma.db.exam.findMany({
       where: { schoolId, ...(classId && { classId }) },
       include: {
         class: { select: { id: true, label: true, grade: true } },
@@ -53,7 +53,7 @@ export class MarksService {
   }
 
   async getExam(schoolId: string, examId: string) {
-    const exam = await this.prisma.exam.findFirst({
+    const exam = await this.prisma.db.exam.findFirst({
       where: { id: examId, schoolId },
       include: {
         class: { include: { sections: true } },
@@ -66,7 +66,7 @@ export class MarksService {
   }
 
   async enterMarks(schoolId: string, examId: string, enteredById: string, rows: MarkInput[]) {
-    const exam = await this.prisma.exam.findFirst({ where: { id: examId, schoolId } });
+    const exam = await this.prisma.db.exam.findFirst({ where: { id: examId, schoolId } });
     if (!exam) throw new NotFoundException('Exam not found');
 
     // Validate up-front so we never open a transaction for a bad row.
@@ -80,7 +80,7 @@ export class MarksService {
     // (`examId_studentId_subjectId`), so we can't use upsert when subjectId
     // is nullable. Fall back to find-then-update/create inside an
     // interactive transaction so the whole batch is still atomic.
-    const saved = await this.prisma.$transaction(async (tx) => {
+    const saved = await this.prisma.runInTenantTx(async (tx) => {
       const out: any[] = [];
       for (const r of rows) {
         const subjectId = r.subjectId ?? exam.subjectId ?? null;
@@ -120,23 +120,23 @@ export class MarksService {
   }
 
   async publishExam(schoolId: string, examId: string) {
-    const exam = await this.prisma.exam.findFirst({ where: { id: examId, schoolId } });
+    const exam = await this.prisma.db.exam.findFirst({ where: { id: examId, schoolId } });
     if (!exam) throw new NotFoundException('Exam not found');
     if (exam.publishedAt) return exam;
 
-    const updated = await this.prisma.exam.update({
+    const updated = await this.prisma.db.exam.update({
       where: { id: examId },
       data: { publishedAt: new Date() },
     });
 
     // notify parents of every student that has marks for this exam
-    const marks = await this.prisma.examMark.findMany({
+    const marks = await this.prisma.db.examMark.findMany({
       where: { examId },
       select: { studentId: true },
     });
     const studentIds = [...new Set(marks.map((m) => m.studentId))];
     if (studentIds.length) {
-      const links = await this.prisma.parentLink.findMany({
+      const links = await this.prisma.db.parentLink.findMany({
         where: { studentId: { in: studentIds } },
         select: { parentId: true, studentId: true },
       });
@@ -145,7 +145,7 @@ export class MarksService {
         ...links.map((l) => ({ userId: l.parentId, studentId: l.studentId })),
         ...studentIds.map((sid) => ({ userId: sid, studentId: sid })),
       ];
-      await this.prisma.notification.createMany({
+      await this.prisma.db.notification.createMany({
         data: targets.map((t) => ({
           schoolId,
           userId: t.userId,
@@ -162,7 +162,7 @@ export class MarksService {
   }
 
   async classSummary(schoolId: string, examId: string) {
-    const marks = await this.prisma.examMark.findMany({
+    const marks = await this.prisma.db.examMark.findMany({
       where: { schoolId, examId },
       include: {
         student: { select: { id: true, name: true, rollNumber: true } },
@@ -171,7 +171,7 @@ export class MarksService {
     });
     if (!marks.length) return { exam: examId, students: [], stats: null };
 
-    const exam = await this.prisma.exam.findUniqueOrThrow({ where: { id: examId } });
+    const exam = await this.prisma.db.exam.findUniqueOrThrow({ where: { id: examId } });
 
     // bucket by student (sum of subject marks if multi-subject exam)
     const byStudent = new Map<string, { student: any; total: number; max: number }>();
@@ -209,7 +209,7 @@ export class MarksService {
 
   async studentReport(schoolId: string, studentId: string, academicYearId?: string) {
     const year = academicYearId ?? (await this.currentYear(schoolId)).id;
-    const student = await this.prisma.user.findFirst({
+    const student = await this.prisma.db.user.findFirst({
       where: { id: studentId, schoolId, role: Role.STUDENT },
       include: {
         section: { include: { class: true } },
@@ -217,7 +217,7 @@ export class MarksService {
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    const marks = await this.prisma.examMark.findMany({
+    const marks = await this.prisma.db.examMark.findMany({
       where: { schoolId, studentId, exam: { academicYearId: year, publishedAt: { not: null } } },
       include: {
         exam: { select: { id: true, name: true, type: true, maxMarks: true, date: true, publishedAt: true } },
@@ -270,8 +270,8 @@ export class MarksService {
   // ---- helpers ----
   private async currentYear(schoolId: string) {
     const year =
-      (await this.prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true } })) ??
-      (await this.prisma.academicYear.findFirst({
+      (await this.prisma.db.academicYear.findFirst({ where: { schoolId, isCurrent: true } })) ??
+      (await this.prisma.db.academicYear.findFirst({
         where: { schoolId },
         orderBy: { startDate: 'desc' },
       }));

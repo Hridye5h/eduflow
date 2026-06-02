@@ -9,13 +9,13 @@ export class ChatService {
   /** List groups visible to this user. */
   async myGroups(schoolId: string, user: { sub: string; role: Role }) {
     if (user.role === Role.SUPER_ADMIN) {
-      return this.prisma.chatGroup.findMany({
+      return this.prisma.db.chatGroup.findMany({
         where: { schoolId },
         include: { section: { include: { class: true } }, _count: { select: { messages: true } } },
         orderBy: { createdAt: 'asc' },
       });
     }
-    return this.prisma.chatGroup.findMany({
+    return this.prisma.db.chatGroup.findMany({
       where: {
         schoolId,
         OR: [
@@ -30,18 +30,18 @@ export class ChatService {
   }
 
   async getOrCreateSectionGroup(schoolId: string, sectionId: string) {
-    const existing = await this.prisma.chatGroup.findFirst({
+    const existing = await this.prisma.db.chatGroup.findFirst({
       where: { schoolId, sectionId, scope: ChatScope.GROUP },
     });
     if (existing) return existing;
 
-    const section = await this.prisma.section.findFirst({
+    const section = await this.prisma.db.section.findFirst({
       where: { id: sectionId, schoolId },
       include: { class: true },
     });
     if (!section) throw new BadRequestException('Section not found');
 
-    return this.prisma.chatGroup.create({
+    return this.prisma.db.chatGroup.create({
       data: {
         schoolId,
         sectionId,
@@ -52,7 +52,7 @@ export class ChatService {
   }
 
   async messages(schoolId: string, groupId: string, before?: string, limit = 50) {
-    return this.prisma.chatMessage.findMany({
+    return this.prisma.db.chatMessage.findMany({
       where: {
         schoolId,
         groupId,
@@ -72,7 +72,7 @@ export class ChatService {
   ) {
     if (!body?.trim()) throw new BadRequestException('Empty message');
 
-    const group = await this.prisma.chatGroup.findFirst({
+    const group = await this.prisma.db.chatGroup.findFirst({
       where: { id: groupId, schoolId },
       include: { section: true },
     });
@@ -80,7 +80,7 @@ export class ChatService {
 
     // student-to-student restriction
     if (!group.studentToStudent) {
-      const author = await this.prisma.user.findUnique({
+      const author = await this.prisma.db.user.findUnique({
         where: { id: authorId },
         select: { role: true },
       });
@@ -91,14 +91,14 @@ export class ChatService {
       }
     }
 
-    return this.prisma.chatMessage.create({
+    return this.prisma.db.chatMessage.create({
       data: { schoolId, groupId, authorId, body },
       include: { author: { select: { id: true, name: true, role: true } } },
     });
   }
 
   async toggleStudentToStudent(schoolId: string, groupId: string, enabled: boolean) {
-    return this.prisma.chatGroup.updateMany({
+    return this.prisma.db.chatGroup.updateMany({
       where: { id: groupId, schoolId },
       data: { studentToStudent: enabled },
     });
@@ -107,7 +107,7 @@ export class ChatService {
   /** Direct message — find-or-create a private 2-person group. */
   async directWith(schoolId: string, meId: string, otherId: string) {
     if (meId === otherId) throw new BadRequestException('Cannot DM yourself');
-    const existing = await this.prisma.chatGroup.findFirst({
+    const existing = await this.prisma.db.chatGroup.findFirst({
       where: {
         schoolId,
         scope: ChatScope.DIRECT,
@@ -117,7 +117,7 @@ export class ChatService {
     });
     if (existing && existing.members.length === 2) return existing;
 
-    return this.prisma.chatGroup.create({
+    return this.prisma.db.chatGroup.create({
       data: {
         schoolId,
         scope: ChatScope.DIRECT,
@@ -127,7 +127,7 @@ export class ChatService {
   }
 
   private async autoMembershipFilters(userId: string) {
-    const me = await this.prisma.user.findUnique({
+    const me = await this.prisma.db.user.findUnique({
       where: { id: userId },
       select: { role: true, sectionId: true },
     });
@@ -137,7 +137,7 @@ export class ChatService {
     }
     if (me.role === Role.TEACHER) {
       // teachers see sections where they're the class teacher or a subject teacher
-      const sections = await this.prisma.section.findMany({
+      const sections = await this.prisma.db.section.findMany({
         where: {
           OR: [
             { classTeacherId: userId },
@@ -151,7 +151,7 @@ export class ChatService {
         : [];
     }
     if (me.role === Role.PARENT) {
-      const links = await this.prisma.parentLink.findMany({
+      const links = await this.prisma.db.parentLink.findMany({
         where: { parentId: userId },
         include: { student: { select: { sectionId: true } } },
       });

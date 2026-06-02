@@ -7,7 +7,7 @@ export class FeesService {
   constructor(private prisma: PrismaService) {}
 
   listStructures(schoolId: string, classId?: string) {
-    return this.prisma.feeStructure.findMany({
+    return this.prisma.db.feeStructure.findMany({
       where: { schoolId, ...(classId && { classId }) },
       orderBy: { createdAt: 'desc' },
     });
@@ -17,10 +17,10 @@ export class FeesService {
     schoolId: string,
     data: { classId: string; name: string; amount: number; dueDate?: string; isMandatory?: boolean },
   ) {
-    const cls = await this.prisma.class.findFirst({ where: { id: data.classId, schoolId } });
+    const cls = await this.prisma.db.class.findFirst({ where: { id: data.classId, schoolId } });
     if (!cls) throw new BadRequestException('Class not in this school');
 
-    const fee = await this.prisma.feeStructure.create({
+    const fee = await this.prisma.db.feeStructure.create({
       data: {
         schoolId,
         classId: data.classId,
@@ -32,12 +32,12 @@ export class FeesService {
     });
 
     // auto-create pending FeePayment rows for every student in the class
-    const students = await this.prisma.user.findMany({
+    const students = await this.prisma.db.user.findMany({
       where: { schoolId, role: Role.STUDENT, isActive: true, section: { classId: data.classId } },
       select: { id: true },
     });
     if (students.length) {
-      await this.prisma.feePayment.createMany({
+      await this.prisma.db.feePayment.createMany({
         data: students.map((s) => ({
           schoolId,
           structureId: fee.id,
@@ -51,7 +51,7 @@ export class FeesService {
   }
 
   async listForClass(schoolId: string, classId: string) {
-    const structures = await this.prisma.feeStructure.findMany({
+    const structures = await this.prisma.db.feeStructure.findMany({
       where: { schoolId, classId },
       include: {
         payments: {
@@ -76,7 +76,7 @@ export class FeesService {
   }
 
   async forStudent(schoolId: string, studentId: string) {
-    return this.prisma.feePayment.findMany({
+    return this.prisma.db.feePayment.findMany({
       where: { schoolId, studentId },
       include: { structure: true },
       orderBy: { createdAt: 'desc' },
@@ -88,7 +88,7 @@ export class FeesService {
     paymentId: string,
     dto: { amount: number; txnRef?: string; receiptUrl?: string },
   ) {
-    const pay = await this.prisma.feePayment.findFirst({
+    const pay = await this.prisma.db.feePayment.findFirst({
       where: { id: paymentId, schoolId },
       include: { structure: true },
     });
@@ -102,7 +102,7 @@ export class FeesService {
           ? FeeStatus.PARTIAL
           : FeeStatus.PENDING;
 
-    return this.prisma.feePayment.update({
+    return this.prisma.db.feePayment.update({
       where: { id: paymentId },
       data: {
         amountPaid: newPaid,
@@ -115,7 +115,7 @@ export class FeesService {
   }
 
   async overdueRemind(schoolId: string) {
-    const overdue = await this.prisma.feePayment.findMany({
+    const overdue = await this.prisma.db.feePayment.findMany({
       where: {
         schoolId,
         status: { in: [FeeStatus.PENDING, FeeStatus.PARTIAL] },
@@ -127,12 +127,12 @@ export class FeesService {
     if (!overdue.length) return { reminded: 0 };
 
     const studentIds = [...new Set(overdue.map((o) => o.studentId))];
-    const links = await this.prisma.parentLink.findMany({
+    const links = await this.prisma.db.parentLink.findMany({
       where: { studentId: { in: studentIds } },
       select: { parentId: true, studentId: true },
     });
 
-    await this.prisma.notification.createMany({
+    await this.prisma.db.notification.createMany({
       data: links.map((l) => ({
         schoolId,
         userId: l.parentId,
@@ -148,7 +148,7 @@ export class FeesService {
   }
 
   async summary(schoolId: string) {
-    const all = await this.prisma.feePayment.findMany({
+    const all = await this.prisma.db.feePayment.findMany({
       where: { schoolId },
       select: { status: true, amountPaid: true, structure: { select: { amount: true, dueDate: true } } },
     });

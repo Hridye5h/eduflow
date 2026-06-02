@@ -11,7 +11,7 @@ export class ReportsService {
     since.setUTCDate(since.getUTCDate() - days);
     since.setUTCHours(0, 0, 0, 0);
 
-    const records = await this.prisma.attendanceRecord.findMany({
+    const records = await this.prisma.db.attendanceRecord.findMany({
       where: { schoolId, date: { gte: since } },
       select: { date: true, status: true },
     });
@@ -42,7 +42,7 @@ export class ReportsService {
   }
 
   async marksSummary(schoolId: string) {
-    const exams = await this.prisma.exam.findMany({
+    const exams = await this.prisma.db.exam.findMany({
       where: { schoolId, publishedAt: { not: null } },
       include: { marks: { select: { marks: true } }, class: { select: { label: true } } },
       orderBy: { date: 'desc' },
@@ -66,7 +66,7 @@ export class ReportsService {
     // attendance side
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - 30);
-    const records = await this.prisma.attendanceRecord.findMany({
+    const records = await this.prisma.db.attendanceRecord.findMany({
       where: { schoolId, date: { gte: since } },
       select: { studentId: true, status: true },
     });
@@ -80,7 +80,7 @@ export class ReportsService {
     }
 
     // marks side — last 5 exams average
-    const marks = await this.prisma.examMark.findMany({
+    const marks = await this.prisma.db.examMark.findMany({
       where: { schoolId, exam: { publishedAt: { not: null } } },
       select: { studentId: true, marks: true, exam: { select: { maxMarks: true } } },
       orderBy: { createdAt: 'desc' },
@@ -108,7 +108,7 @@ export class ReportsService {
     }
 
     const ids = flagged.map((f) => f.studentId);
-    const students = await this.prisma.user.findMany({
+    const students = await this.prisma.db.user.findMany({
       where: { id: { in: ids } },
       select: { id: true, name: true, rollNumber: true, sectionId: true },
     });
@@ -117,7 +117,7 @@ export class ReportsService {
   }
 
   async teacherActivity(schoolId: string) {
-    const teachers = await this.prisma.user.findMany({
+    const teachers = await this.prisma.db.user.findMany({
       where: { schoolId, role: Role.TEACHER, isActive: true },
       select: { id: true, name: true },
     });
@@ -128,9 +128,9 @@ export class ReportsService {
     const result = await Promise.all(
       teachers.map(async (t) => {
         const [posts, marksEntered, attendanceMarked] = await Promise.all([
-          this.prisma.post.count({ where: { schoolId, authorId: t.id, createdAt: { gte: since } } }),
-          this.prisma.examMark.count({ where: { schoolId, enteredById: t.id, createdAt: { gte: since } } }),
-          this.prisma.attendanceRecord.count({ where: { schoolId, markedById: t.id, createdAt: { gte: since } } }),
+          this.prisma.db.post.count({ where: { schoolId, authorId: t.id, createdAt: { gte: since } } }),
+          this.prisma.db.examMark.count({ where: { schoolId, enteredById: t.id, createdAt: { gte: since } } }),
+          this.prisma.db.attendanceRecord.count({ where: { schoolId, markedById: t.id, createdAt: { gte: since } } }),
         ]);
         return { teacher: t, posts, marksEntered, attendanceMarked };
       }),

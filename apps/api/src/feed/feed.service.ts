@@ -24,7 +24,7 @@ export class FeedService {
     const scheduledFor = dto.scheduledFor ? new Date(dto.scheduledFor) : null;
     const publishedAt = scheduledFor && scheduledFor > new Date() ? null : new Date();
 
-    return this.prisma.post.create({
+    return this.prisma.db.post.create({
       data: {
         schoolId,
         authorId,
@@ -51,7 +51,7 @@ export class FeedService {
     // For students, restrict to their own section + school-wide posts.
     let allowedSection: string | undefined = opts.sectionId;
     if (user.role === Role.STUDENT) {
-      const me = await this.prisma.user.findUnique({
+      const me = await this.prisma.db.user.findUnique({
         where: { id: user.sub },
         select: { sectionId: true },
       });
@@ -68,7 +68,7 @@ export class FeedService {
       ...(opts.type && { type: opts.type }),
     };
 
-    return this.prisma.post.findMany({
+    return this.prisma.db.post.findMany({
       where,
       include: {
         author: { select: { id: true, name: true, role: true, avatarUrl: true } },
@@ -82,19 +82,19 @@ export class FeedService {
   }
 
   async pin(schoolId: string, postId: string, pin: boolean) {
-    const post = await this.prisma.post.findFirst({ where: { id: postId, schoolId } });
+    const post = await this.prisma.db.post.findFirst({ where: { id: postId, schoolId } });
     if (!post) throw new BadRequestException('Post not found');
-    return this.prisma.post.update({ where: { id: postId }, data: { isPinned: pin } });
+    return this.prisma.db.post.update({ where: { id: postId }, data: { isPinned: pin } });
   }
 
   async comment(schoolId: string, postId: string, authorId: string, body: string) {
-    return this.prisma.postComment.create({
+    return this.prisma.db.postComment.create({
       data: { schoolId, postId, authorId, body },
     });
   }
 
   async react(schoolId: string, postId: string, userId: string, emoji = '👍') {
-    return this.prisma.postReaction.upsert({
+    return this.prisma.db.postReaction.upsert({
       where: { postId_userId_emoji: { postId, userId, emoji } },
       update: {},
       create: { schoolId, postId, userId, emoji },
@@ -102,7 +102,7 @@ export class FeedService {
   }
 
   async unreact(postId: string, userId: string, emoji = '👍') {
-    await this.prisma.postReaction.deleteMany({ where: { postId, userId, emoji } });
+    await this.prisma.db.postReaction.deleteMany({ where: { postId, userId, emoji } });
     return { ok: true };
   }
 }

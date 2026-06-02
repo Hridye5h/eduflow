@@ -8,7 +8,7 @@ export class NotificationsService {
 
   list(userId: string, opts: { onlyUnread?: boolean; limit?: number }) {
     const limit = Math.min(opts.limit ?? 50, 200);
-    return this.prisma.notification.findMany({
+    return this.prisma.db.notification.findMany({
       where: { userId, ...(opts.onlyUnread && { readAt: null }) },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -16,18 +16,18 @@ export class NotificationsService {
   }
 
   unreadCount(userId: string) {
-    return this.prisma.notification.count({ where: { userId, readAt: null } });
+    return this.prisma.db.notification.count({ where: { userId, readAt: null } });
   }
 
   markRead(userId: string, id: string) {
-    return this.prisma.notification.updateMany({
+    return this.prisma.db.notification.updateMany({
       where: { id, userId },
       data: { readAt: new Date() },
     });
   }
 
   markAllRead(userId: string) {
-    return this.prisma.notification.updateMany({
+    return this.prisma.db.notification.updateMany({
       where: { userId, readAt: null },
       data: { readAt: new Date() },
     });
@@ -38,7 +38,7 @@ export class NotificationsService {
     schoolId: string,
     dto: { audience: 'ALL' | Role; title: string; body: string },
   ) {
-    const users = await this.prisma.user.findMany({
+    const users = await this.prisma.db.user.findMany({
       where: {
         schoolId,
         isActive: true,
@@ -46,7 +46,7 @@ export class NotificationsService {
       },
       select: { id: true },
     });
-    await this.prisma.notification.createMany({
+    await this.prisma.db.notification.createMany({
       data: users.map((u) => ({
         schoolId,
         userId: u.id,
@@ -60,7 +60,7 @@ export class NotificationsService {
 
   // ---- preferences ----
   getPrefs(userId: string) {
-    return this.prisma.notificationPreference.findMany({ where: { userId } });
+    return this.prisma.db.notificationPreference.findMany({ where: { userId } });
   }
 
   async setPref(
@@ -69,7 +69,7 @@ export class NotificationsService {
     channel: NotificationChannel,
     enabled: boolean,
   ) {
-    return this.prisma.notificationPreference.upsert({
+    return this.prisma.db.notificationPreference.upsert({
       where: { userId_type_channel: { userId, type, channel } },
       update: { enabled },
       create: { userId, type, channel, enabled },

@@ -18,25 +18,28 @@ export class AttendanceService {
   ) {
     const day = this.toDay(date);
 
-    const section = await this.prisma.section.findFirst({ where: { id: sectionId, schoolId } });
+    const section = await this.prisma.db.section.findFirst({ where: { id: sectionId, schoolId } });
     if (!section) throw new BadRequestException('Section not in this school');
 
-    const ops = rows.map((r) =>
-      this.prisma.attendanceRecord.upsert({
-        where: { studentId_date: { studentId: r.studentId, date: day } },
-        update: { status: r.status, note: r.note, markedById },
-        create: {
-          schoolId,
-          sectionId,
-          studentId: r.studentId,
-          date: day,
-          status: r.status,
-          note: r.note,
-          markedById,
-        },
-      }),
+    const saved = await this.prisma.runInTenantTx((tx) =>
+      Promise.all(
+        rows.map((r) =>
+          tx.attendanceRecord.upsert({
+            where: { studentId_date: { studentId: r.studentId, date: day } },
+            update: { status: r.status, note: r.note, markedById },
+            create: {
+              schoolId,
+              sectionId,
+              studentId: r.studentId,
+              date: day,
+              status: r.status,
+              note: r.note,
+              markedById,
+            },
+          }),
+        ),
+      ),
     );
-    const saved = await this.prisma.$transaction(ops);
 
     // emit absent-notifications (queued in a real system)
     const absent = saved.filter((s) => s.status === AttendanceStatus.ABSENT);
@@ -50,12 +53,12 @@ export class AttendanceService {
   async sectionForDate(schoolId: string, sectionId: string, date: string) {
     const day = this.toDay(date);
     const [students, records] = await Promise.all([
-      this.prisma.user.findMany({
+      this.prisma.db.user.findMany({
         where: { schoolId, sectionId, role: Role.STUDENT, isActive: true },
         select: { id: true, name: true, rollNumber: true },
         orderBy: [{ rollNumber: 'asc' }, { name: 'asc' }],
       }),
-      this.prisma.attendanceRecord.findMany({
+      this.prisma.db.attendanceRecord.findMany({
         where: { schoolId, sectionId, date: day },
         select: { studentId: true, status: true, note: true },
       }),
@@ -74,7 +77,7 @@ export class AttendanceService {
     const start = new Date(Date.UTC(y, m - 1, 1));
     const end = new Date(Date.UTC(y, m, 1));
 
-    const records = await this.prisma.attendanceRecord.findMany({
+    const records = await this.prisma.db.attendanceRecord.findMany({
       where: { schoolId, studentId, date: { gte: start, lt: end } },
       orderBy: { date: 'asc' },
     });
@@ -102,7 +105,7 @@ export class AttendanceService {
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - 30);
 
-    const records = await this.prisma.attendanceRecord.findMany({
+    const records = await this.prisma.db.attendanceRecord.findMany({
       where: { schoolId, date: { gte: since } },
       select: { studentId: true, status: true },
     });
@@ -122,7 +125,7 @@ export class AttendanceService {
       if (pct < threshold) flagged.push({ studentId, percentage: pct });
     }
 
-    const students = await this.prisma.user.findMany({
+    const students = await this.prisma.db.user.findMany({
       where: { id: { in: flagged.map((f) => f.studentId) } },
       select: { id: true, name: true, rollNumber: true, sectionId: true },
     });
@@ -137,7 +140,7 @@ export class AttendanceService {
     applicantId: string,
     data: { studentId: string; fromDate: string; toDate: string; reason: string },
   ) {
-    return this.prisma.leaveApplication.create({
+    return this.prisma.db.leaveApplication.create({
       data: {
         schoolId,
         applicantId,
@@ -156,19 +159,19 @@ export class AttendanceService {
     decision: LeaveStatus,
     note?: string,
   ) {
-    const leave = await this.prisma.leaveApplication.findFirst({
+    const leave = await this.prisma.db.leaveApplication.findFirst({
       where: { id: leaveId, schoolId },
     });
     if (!leave) throw new BadRequestException('Leave not found');
 
-    return this.prisma.leaveApplication.update({
+    return this.prisma.db.leaveApplication.update({
       where: { id: leaveId },
       data: { status: decision, decidedById: deciderId, decidedAt: new Date(), decisionNote: note },
     });
   }
 
   async listLeaves(schoolId: string, status?: LeaveStatus) {
-    return this.prisma.leaveApplication.findMany({
+    return this.prisma.db.leaveApplication.findMany({
       where: { schoolId, ...(status && { status }) },
       orderBy: { createdAt: 'desc' },
       take: 200,
@@ -190,13 +193,13 @@ export class AttendanceService {
     day: Date,
   ) {
     if (!studentIds.length) return;
-    const links = await this.prisma.parentLink.findMany({
+    const links = await this.prisma.db.parentLink.findMany({
       where: { studentId: { in: studentIds } },
       select: { parentId: true, studentId: true },
     });
     if (!links.length) return;
 
-    await this.prisma.notification.createMany({
+    await this.prisma.db.notification.createMany({
       data: links.map((l) => ({
         schoolId,
         userId: l.parentId,

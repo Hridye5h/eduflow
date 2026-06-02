@@ -18,7 +18,7 @@ export class AdminService {
   constructor(private prisma: PrismaService) {}
 
   async listUsers(schoolId: string, role?: Role, search?: string) {
-    return this.prisma.user.findMany({
+    return this.prisma.db.user.findMany({
       where: {
         schoolId,
         ...(role && { role }),
@@ -42,7 +42,7 @@ export class AdminService {
   async createUser(schoolId: string, dto: NewUser) {
     if (!dto.email && !dto.phone) throw new BadRequestException('email or phone required');
     const password = dto.password ? await hashPassword(dto.password) : undefined;
-    return this.prisma.user.create({
+    return this.prisma.db.user.create({
       data: {
         schoolId,
         role: dto.role,
@@ -58,25 +58,29 @@ export class AdminService {
   }
 
   async bulkImportUsers(schoolId: string, role: Role, rows: NewUser[]) {
-    const created = await this.prisma.$transaction(
-      rows.map((r) => this.prisma.user.create({
-        data: {
-          schoolId,
-          role,
-          name: r.name,
-          email: r.email,
-          phone: r.phone,
-          sectionId: role === Role.STUDENT ? r.sectionId : undefined,
-          rollNumber: role === Role.STUDENT ? r.rollNumber : undefined,
-        },
-        select: { id: true },
-      })),
+    const created = await this.prisma.runInTenantTx((tx) =>
+      Promise.all(
+        rows.map((r) =>
+          tx.user.create({
+            data: {
+              schoolId,
+              role,
+              name: r.name,
+              email: r.email,
+              phone: r.phone,
+              sectionId: role === Role.STUDENT ? r.sectionId : undefined,
+              rollNumber: role === Role.STUDENT ? r.rollNumber : undefined,
+            },
+            select: { id: true },
+          }),
+        ),
+      ),
     );
     return { imported: created.length };
   }
 
   async setActive(schoolId: string, userId: string, isActive: boolean) {
-    return this.prisma.user.updateMany({
+    return this.prisma.db.user.updateMany({
       where: { id: userId, schoolId },
       data: { isActive },
     });
@@ -90,17 +94,17 @@ export class AdminService {
     if (data.rollNumber !== undefined) patch.rollNumber = data.rollNumber;
     if (data.sectionId !== undefined) patch.sectionId = data.sectionId;
     if (data.password) patch.password = await hashPassword(data.password);
-    return this.prisma.user.updateMany({ where: { id: userId, schoolId }, data: patch });
+    return this.prisma.db.user.updateMany({ where: { id: userId, schoolId }, data: patch });
   }
 
   async linkParent(schoolId: string, parentId: string, studentId: string, relation?: string) {
     // confirm both rows belong to the school
     const [parent, student] = await Promise.all([
-      this.prisma.user.findFirst({ where: { id: parentId, schoolId, role: Role.PARENT } }),
-      this.prisma.user.findFirst({ where: { id: studentId, schoolId, role: Role.STUDENT } }),
+      this.prisma.db.user.findFirst({ where: { id: parentId, schoolId, role: Role.PARENT } }),
+      this.prisma.db.user.findFirst({ where: { id: studentId, schoolId, role: Role.STUDENT } }),
     ]);
     if (!parent || !student) throw new BadRequestException('Parent or student not found in this school');
-    return this.prisma.parentLink.upsert({
+    return this.prisma.db.parentLink.upsert({
       where: { parentId_studentId: { parentId, studentId } },
       update: { relation },
       create: { parentId, studentId, relation },
@@ -108,11 +112,11 @@ export class AdminService {
   }
 
   listSubjects(schoolId: string) {
-    return this.prisma.subject.findMany({ where: { schoolId }, orderBy: { name: 'asc' } });
+    return this.prisma.db.subject.findMany({ where: { schoolId }, orderBy: { name: 'asc' } });
   }
 
   createSubject(schoolId: string, name: string, code?: string) {
-    return this.prisma.subject.create({ data: { schoolId, name, code } });
+    return this.prisma.db.subject.create({ data: { schoolId, name, code } });
   }
 
   // ---- audit log ----
@@ -126,13 +130,13 @@ export class AdminService {
     ip?: string,
     ua?: string,
   ) {
-    return this.prisma.auditLog.create({
+    return this.prisma.db.auditLog.create({
       data: { schoolId, actorId, action, entity, entityId, diffJson: diff, ip, userAgent: ua },
     });
   }
 
   listAudit(schoolId: string, limit = 100) {
-    return this.prisma.auditLog.findMany({
+    return this.prisma.db.auditLog.findMany({
       where: { schoolId },
       orderBy: { createdAt: 'desc' },
       take: Math.min(limit, 500),

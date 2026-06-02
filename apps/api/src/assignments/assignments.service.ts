@@ -21,12 +21,12 @@ export class AssignmentsService {
       attachments?: any[];
     },
   ) {
-    const section = await this.prisma.section.findFirst({
+    const section = await this.prisma.db.section.findFirst({
       where: { id: dto.sectionId, schoolId },
     });
     if (!section) throw new BadRequestException('Section not in this school');
 
-    return this.prisma.post.create({
+    return this.prisma.db.post.create({
       data: {
         schoolId,
         authorId,
@@ -50,7 +50,7 @@ export class AssignmentsService {
   }
 
   async listForSection(schoolId: string, sectionId: string) {
-    return this.prisma.post.findMany({
+    return this.prisma.db.post.findMany({
       where: { schoolId, sectionId, type: PostType.ASSIGNMENT },
       include: {
         assignment: { include: { _count: { select: { submissions: true } } } },
@@ -61,7 +61,7 @@ export class AssignmentsService {
   }
 
   async detail(schoolId: string, assignmentId: string) {
-    const a = await this.prisma.assignment.findUnique({
+    const a = await this.prisma.db.assignment.findUnique({
       where: { id: assignmentId },
       include: {
         post: {
@@ -78,13 +78,13 @@ export class AssignmentsService {
 
   /** A student's own submission for an assignment, or null if they haven't submitted. */
   async myStudentSubmission(schoolId: string, assignmentId: string, studentId: string) {
-    const a = await this.prisma.assignment.findUnique({
+    const a = await this.prisma.db.assignment.findUnique({
       where: { id: assignmentId },
       include: { post: { select: { schoolId: true } } },
     });
     if (!a || a.post.schoolId !== schoolId) throw new NotFoundException('Assignment not found');
 
-    return this.prisma.submission.findUnique({
+    return this.prisma.db.submission.findUnique({
       where: { assignmentId_studentId: { assignmentId, studentId } },
       include: {
         gradedBy: { select: { id: true, name: true } },
@@ -96,7 +96,7 @@ export class AssignmentsService {
     const a = await this.detail(schoolId, assignmentId);
 
     const [submissions, students] = await Promise.all([
-      this.prisma.submission.findMany({
+      this.prisma.db.submission.findMany({
         where: { assignmentId },
         include: {
           student: { select: { id: true, name: true, rollNumber: true } },
@@ -104,7 +104,7 @@ export class AssignmentsService {
         },
         orderBy: { submittedAt: 'desc' },
       }),
-      this.prisma.user.findMany({
+      this.prisma.db.user.findMany({
         where: { schoolId, sectionId: a.post.sectionId!, role: Role.STUDENT, isActive: true },
         select: { id: true, name: true, rollNumber: true },
       }),
@@ -132,7 +132,7 @@ export class AssignmentsService {
       throw new ForbiddenException('Submissions closed for this assignment');
     }
 
-    const student = await this.prisma.user.findFirst({
+    const student = await this.prisma.db.user.findFirst({
       where: { id: studentId, schoolId, role: Role.STUDENT },
       select: { sectionId: true },
     });
@@ -144,7 +144,7 @@ export class AssignmentsService {
     const now = new Date();
     const isLate = now > a.dueAt;
 
-    return this.prisma.submission.upsert({
+    return this.prisma.db.submission.upsert({
       where: { assignmentId_studentId: { assignmentId, studentId } },
       update: {
         body: dto.body,
@@ -174,7 +174,7 @@ export class AssignmentsService {
     graderId: string,
     dto: { grade: number; feedback?: string },
   ) {
-    const sub = await this.prisma.submission.findFirst({
+    const sub = await this.prisma.db.submission.findFirst({
       where: { id: submissionId, schoolId },
       include: { assignment: true },
     });
@@ -182,7 +182,7 @@ export class AssignmentsService {
     if (sub.assignment.maxMarks && (dto.grade < 0 || dto.grade > sub.assignment.maxMarks)) {
       throw new BadRequestException(`grade out of range (0..${sub.assignment.maxMarks})`);
     }
-    return this.prisma.submission.update({
+    return this.prisma.db.submission.update({
       where: { id: submissionId },
       data: {
         grade: dto.grade,
@@ -197,7 +197,7 @@ export class AssignmentsService {
   /** Lightweight "plagiarism" flag — finds submissions with the same bodyHash. */
   async duplicates(schoolId: string, assignmentId: string) {
     await this.detail(schoolId, assignmentId);
-    const subs = await this.prisma.submission.findMany({
+    const subs = await this.prisma.db.submission.findMany({
       where: { assignmentId, bodyHash: { not: null } },
       select: { id: true, studentId: true, bodyHash: true, student: { select: { name: true } } },
     });

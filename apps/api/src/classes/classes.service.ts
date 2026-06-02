@@ -8,7 +8,7 @@ export class ClassesService {
 
   async listClasses(schoolId: string, academicYearId?: string) {
     const year = academicYearId ?? (await this.currentYear(schoolId)).id;
-    return this.prisma.class.findMany({
+    return this.prisma.db.class.findMany({
       where: { schoolId, academicYearId: year },
       include: { sections: { include: { classTeacher: { select: { id: true, name: true } } } } },
       orderBy: { grade: 'asc' },
@@ -17,7 +17,7 @@ export class ClassesService {
 
   async createClass(schoolId: string, grade: number, label?: string) {
     const year = await this.currentYear(schoolId);
-    return this.prisma.class.create({
+    return this.prisma.db.class.create({
       data: {
         schoolId,
         academicYearId: year.id,
@@ -29,25 +29,25 @@ export class ClassesService {
 
   async createSection(schoolId: string, classId: string, name: string, classTeacherId?: string) {
     await this.assertClassInSchool(classId, schoolId);
-    return this.prisma.section.create({
+    return this.prisma.db.section.create({
       data: { schoolId, classId, name: name.toUpperCase(), classTeacherId },
     });
   }
 
   async assignClassTeacher(schoolId: string, sectionId: string, teacherId: string) {
-    const teacher = await this.prisma.user.findFirst({
+    const teacher = await this.prisma.db.user.findFirst({
       where: { id: teacherId, schoolId, role: Role.TEACHER },
     });
     if (!teacher) throw new BadRequestException('Teacher not found in this school');
 
-    return this.prisma.section.update({
+    return this.prisma.db.section.update({
       where: { id: sectionId },
       data: { classTeacherId: teacherId },
     });
   }
 
   async roster(schoolId: string, sectionId: string) {
-    return this.prisma.user.findMany({
+    return this.prisma.db.user.findMany({
       where: { schoolId, sectionId, role: Role.STUDENT, isActive: true },
       select: {
         id: true,
@@ -67,7 +67,7 @@ export class ClassesService {
     data: { name: string; rollNumber?: string; email?: string; phone?: string },
   ) {
     await this.assertSectionInSchool(sectionId, schoolId);
-    return this.prisma.user.create({
+    return this.prisma.db.user.create({
       data: {
         schoolId,
         sectionId,
@@ -82,7 +82,7 @@ export class ClassesService {
 
   async transferStudent(schoolId: string, studentId: string, toSectionId: string) {
     await this.assertSectionInSchool(toSectionId, schoolId);
-    return this.prisma.user.update({
+    return this.prisma.db.user.update({
       where: { id: studentId },
       data: { sectionId: toSectionId },
     });
@@ -94,20 +94,22 @@ export class ClassesService {
     rows: Array<{ name: string; rollNumber?: string; email?: string; phone?: string }>,
   ) {
     await this.assertSectionInSchool(sectionId, schoolId);
-    const created = await this.prisma.$transaction(
-      rows.map((r) =>
-        this.prisma.user.create({
-          data: {
-            schoolId,
-            sectionId,
-            role: Role.STUDENT,
-            name: r.name,
-            rollNumber: r.rollNumber,
-            email: r.email,
-            phone: r.phone,
-          },
-          select: { id: true, name: true, rollNumber: true },
-        }),
+    const created = await this.prisma.runInTenantTx((tx) =>
+      Promise.all(
+        rows.map((r) =>
+          tx.user.create({
+            data: {
+              schoolId,
+              sectionId,
+              role: Role.STUDENT,
+              name: r.name,
+              rollNumber: r.rollNumber,
+              email: r.email,
+              phone: r.phone,
+            },
+            select: { id: true, name: true, rollNumber: true },
+          }),
+        ),
       ),
     );
     return { imported: created.length, students: created };
@@ -115,10 +117,10 @@ export class ClassesService {
 
   private async currentYear(schoolId: string) {
     const year =
-      (await this.prisma.academicYear.findFirst({
+      (await this.prisma.db.academicYear.findFirst({
         where: { schoolId, isCurrent: true },
       })) ??
-      (await this.prisma.academicYear.findFirst({
+      (await this.prisma.db.academicYear.findFirst({
         where: { schoolId },
         orderBy: { startDate: 'desc' },
       }));
@@ -127,12 +129,12 @@ export class ClassesService {
   }
 
   private async assertClassInSchool(classId: string, schoolId: string) {
-    const c = await this.prisma.class.findFirst({ where: { id: classId, schoolId } });
+    const c = await this.prisma.db.class.findFirst({ where: { id: classId, schoolId } });
     if (!c) throw new NotFoundException('Class not found in this school');
   }
 
   private async assertSectionInSchool(sectionId: string, schoolId: string) {
-    const s = await this.prisma.section.findFirst({ where: { id: sectionId, schoolId } });
+    const s = await this.prisma.db.section.findFirst({ where: { id: sectionId, schoolId } });
     if (!s) throw new NotFoundException('Section not found in this school');
   }
 }

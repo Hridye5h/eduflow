@@ -102,20 +102,32 @@ DATABASE_URL=postgres://... pnpm --filter api test src/prisma/rls.spec.ts
 cross-tenant filters return nothing, no-context returns zero rows, and `WITH
 CHECK` blocks writing into another tenant. This test is the CI gate for R3.
 
-## Service cutover (rolling this on)
+## Service cutover (done — pending staging verification)
 
-The plumbing is **inert until `rls.sql` is applied** (setting an unused GUC is a
-no-op), and the existing app-level `where: { schoolId }` filters stay in place, so
-this ships safely. To turn on enforcement, per module:
+The 12 domain service modules (admin, assignments, attendance, chat, classes,
+feed, fees, marks, notifications, reports, schools, timetable) now use the
+tenant client `this.prisma.db.*`, and their multi-statement writes use
+`runInTenantTx`. The **auth module runs under `runAsSystem`** — it is the trusted
+tenant *resolver* (it runs before a context exists and scopes every query by an
+explicit `schoolId`). `tenant.middleware` (subdomain lookup) and `health`
+(DB ping) stay on the base client by design.
 
-1. Switch data access from the base client to the tenant client: `this.prisma.X`
-   → `this.prisma.db.X`.
-2. Move any LLM/OCR/HTTP call out of `$transaction` blocks (use `runInTenantTx`
-   for the DB part only).
-3. Mark genuine system paths (cron, seeds) with `runAsSystem`.
-4. Apply `rls.sql` in staging, run `rls.spec.ts` + a smoke test, then production.
+**This is safe to ship as-is:** `prisma.db` with a tenant context is a no-op
+until `rls.sql` is applied (it just sets an unused GUC), and the existing
+app-level `where: { schoolId }` filters are still in place. Enforcement only
+turns on when you apply the policies.
 
-Do this module-by-module; the leak test guards each step.
+**Before enabling in production:**
+
+1. Apply policies in **staging**: `pnpm --filter api db:rls`.
+2. Run the leak test: `DATABASE_URL=… pnpm --filter api test src/prisma/rls.spec.ts`.
+3. Smoke-test the critical flows — **login, OTP, signup, a CRUD read/write in
+   each module** — to confirm nothing fails closed (the one runtime risk a
+   typecheck can't catch).
+4. Then apply `rls.sql` in production.
+
+The leak test + smoke test are the gate. Roll back by simply not applying
+`rls.sql` (the app keeps working on the app-level filters).
 
 ## Not yet covered (tracked follow-up)
 
