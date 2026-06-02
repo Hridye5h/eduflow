@@ -1,5 +1,4 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { applyRlsAsOwner } from '../test-utils/rls';
 import { createHmac } from 'node:crypto';
 import { OutboxStatus, WaEventStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -50,9 +49,7 @@ d('WhatsApp ingest (transactional outbox)', () => {
   beforeAll(async () => {
     process.env.WHATSAPP_APP_SECRET = SECRET;
     await prisma.onModuleInit();
-    await prisma.$executeRawUnsafe(
-      fs.readFileSync(path.join(__dirname, '..', '..', 'prisma', 'rls.sql'), 'utf8').replace(/;\s*$/, ''),
-    );
+    await applyRlsAsOwner();
     await prisma.runAsSystem(async () => {
       const school = await prisma.db.school.create({
         data: { name: 'WA Coaching', subdomain: `wa-${suffix}`, whatsappPhoneNumberId: phoneNumberId },

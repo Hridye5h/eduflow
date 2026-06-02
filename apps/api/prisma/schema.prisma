@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // runtime: non-bypass app role (RLS enforced)
+  directUrl = env("DIRECT_URL")   // migrations/DDL: owner role
 }
 
 // =====================================================================

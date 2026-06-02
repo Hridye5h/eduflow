@@ -1,5 +1,4 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { applyRlsAsOwner } from '../test-utils/rls';
 import { PrismaService } from './prisma.service';
 import { TenantContext } from '../common/tenant-context';
 
@@ -26,11 +25,8 @@ d('RLS cross-tenant isolation', () => {
   beforeAll(async () => {
     await prisma.onModuleInit();
 
-    // Apply the RLS policies (idempotent) so the test is self-contained.
-    const sql = fs
-      .readFileSync(path.join(__dirname, '..', '..', 'prisma', 'rls.sql'), 'utf8')
-      .replace(/;\s*$/, '');
-    await prisma.$executeRawUnsafe(sql);
+    // Apply the RLS policies (idempotent) via the owner connection.
+    await applyRlsAsOwner();
 
     // Seed two tenants + one AcademicYear each, with RLS bypassed.
     await prisma.runAsSystem(async () => {

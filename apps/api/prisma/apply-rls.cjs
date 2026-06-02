@@ -13,7 +13,9 @@ const { PrismaClient } = require('@prisma/client');
 async function main() {
   const sqlPath = path.join(__dirname, 'rls.sql');
   const sql = fs.readFileSync(sqlPath, 'utf8').replace(/;\s*$/, '');
-  const prisma = new PrismaClient();
+  // DDL (ALTER TABLE / CREATE POLICY) needs the owner role — use DIRECT_URL.
+  const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  const prisma = new PrismaClient({ datasources: { db: { url } } });
   try {
     await prisma.$executeRawUnsafe(sql);
     console.log('✓ RLS policies applied (prisma/rls.sql)');

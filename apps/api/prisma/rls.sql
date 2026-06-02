@@ -51,11 +51,11 @@ BEGIN
       CREATE POLICY tenant_isolation ON public.%I
       USING (
         current_setting('app.bypass_rls', true) = 'on'
-        OR "schoolId" = current_setting('app.current_tenant_id', true)::uuid
+        OR "schoolId" = current_setting('app.current_tenant_id', true)
       )
       WITH CHECK (
         current_setting('app.bypass_rls', true) = 'on'
-        OR "schoolId" = current_setting('app.current_tenant_id', true)::uuid
+        OR "schoolId" = current_setting('app.current_tenant_id', true)
       )
     $pol$, t);
 
