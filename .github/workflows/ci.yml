@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api-test:
+    name: API e2e tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eduflow
+          POSTGRES_PASSWORD: eduflowpass
+          POSTGRES_DB: eduflow_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U eduflow -d eduflow_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://eduflow:eduflowpass@localhost:5432/eduflow_test?schema=public
+      JWT_SECRET: ci-secret
+      ENABLE_TEST_HELPERS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: pnpm install --no-frozen-lockfile
+      - name: Sync DB schema
+        working-directory: apps/api
+        run: pnpm exec prisma db push --accept-data-loss --skip-generate
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: pnpm exec prisma generate
+      - name: Run e2e tests
+        working-directory: apps/api
+        run: pnpm test:e2e
+
+  web-build:
+    name: Web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: pnpm install --no-frozen-lockfile
+      - name: Generate Prisma client (api workspace)
+        working-directory: apps/api
+        run: pnpm exec prisma generate
+      - name: Next build
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_API_BASE: https://example.invalid
+        run: pnpm build

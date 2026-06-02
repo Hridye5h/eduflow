@@ -1,0 +1,17 @@
+{
+  "name": "eduflow",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "prisma:generate": "pnpm --filter api exec prisma generate",
+    "prisma:migrate": "pnpm --filter api exec prisma migrate dev",
+    "prisma:seed": "pnpm --filter api exec prisma db seed"
+  },
+  "description": "EduFlow — multi-tenant school management SaaS"
+}

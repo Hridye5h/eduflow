@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "EduFlow",
+    "slug": "eduflow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "eduflow",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "backgroundColor": "#f7f8fb",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.eduflow.mobile"
+    },
+    "android": {
+      "package": "app.eduflow.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#f7f8fb"
+      },
+      "permissions": ["INTERNET"]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_AFTER_EAS_INIT"
+      }
+    },
+    "owner": "REPLACE_WITH_EXPO_USERNAME",
+    "updates": {
+      "url": "https://u.expo.dev/REPLACE_AFTER_EAS_INIT"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

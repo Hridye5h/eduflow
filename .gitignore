@@ -1,0 +1,21 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+.next/
+.expo/
+coverage/
+.env
+.env.local
+*.log
+.DS_Store
+apps/api/uploads/
+
+# Demo-only — contains plaintext passwords. Never commit.
+SEED_CREDENTIALS.md
+SEED_CREDENTIALS.pdf
+
+# Internal-only documentation (kept local).
+DOCUMENTATION.md
+DOCUMENTATION.pdf
+DOCUMENTATION.docx
