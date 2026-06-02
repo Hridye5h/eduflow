@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { DunningStatus, Role } from '@prisma/client';
 import { DunningService } from './dunning.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -48,6 +48,16 @@ export class DunningController {
   async stop(@Param('id') id: string, @Body() body: { detail?: string }) {
     await this.dunning.stopRun(id, body?.detail);
     return { ok: true };
+  }
+
+  @Get()
+  list(@Query('status') status?: DunningStatus) {
+    return this.dunning.listRuns(status);
+  }
+
+  @Get('summary')
+  summary() {
+    return this.dunning.summary();
   }
 
   @Get(':id')

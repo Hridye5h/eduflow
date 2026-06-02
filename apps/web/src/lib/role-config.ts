@@ -13,6 +13,7 @@ import {
   ClipboardList,
   BarChart3,
   Building2,
+  IndianRupee,
   User as UserIcon,
 } from 'lucide-react';
 
@@ -60,6 +61,7 @@ export const ROLE_PORTAL: Record<Role, RolePortal> = {
       { href: '/principal/feed',         label: 'Class Wall',    icon: MessageSquare },
       { href: '/principal/reports',      label: 'Reports',       icon: BarChart3 },
       { href: '/principal/fees',         label: 'Fees',          icon: Wallet },
+      { href: '/principal/collections',  label: 'Collections',   icon: IndianRupee },
       { href: '/principal/inbox',        label: 'Inbox',         icon: Bell, badge: 'notifications' },
       { href: '/principal/settings',     label: 'Settings',      icon: Settings },
     ],

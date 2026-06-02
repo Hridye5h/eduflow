@@ -195,6 +195,29 @@ export class DunningService {
     });
   }
 
+  /** List runs for the owner dashboard, newest activity first. */
+  listRuns(status?: DunningStatus) {
+    return this.prisma.db.dunningRun.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { updatedAt: 'desc' },
+      take: 200,
+    });
+  }
+
+  /** Aggregate collections summary for the dashboard. */
+  async summary() {
+    const runs = await this.prisma.db.dunningRun.findMany({
+      select: { status: true, amount: true },
+    });
+    const active = runs.filter((r) => r.status === DunningStatus.ACTIVE).length;
+    const awaiting = runs.filter((r) => r.status === DunningStatus.AWAITING_APPROVAL).length;
+    const paid = runs.filter((r) => r.status === DunningStatus.PAID).length;
+    const outstanding = runs
+      .filter((r) => r.status === DunningStatus.ACTIVE || r.status === DunningStatus.AWAITING_APPROVAL)
+      .reduce((s, r) => s + r.amount, 0);
+    return { active, awaiting, paid, outstanding, total: runs.length };
+  }
+
   // ---- internals ---------------------------------------------------------
 
   /** Build copy, stamp provenance, queue the send, advance the run — atomically. */
