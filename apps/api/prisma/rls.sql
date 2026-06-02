@@ -32,7 +32,8 @@ DECLARE
     'Post', 'PostComment', 'PostReaction', 'Submission', 'ChatGroup',
     'ChatMessage', 'Timetable', 'Notification', 'NotificationTemplate',
     'FeeStructure', 'FeePayment', 'AuditLog', 'ConsentEvent', 'AiGeneration',
-    'WhatsAppInboundEvent', 'OutboxItem', 'DunningRun', 'DunningEvent'
+    'WhatsAppInboundEvent', 'OutboxItem', 'DunningRun', 'DunningEvent',
+    'GradedSheet', 'TestReport'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables LOOP

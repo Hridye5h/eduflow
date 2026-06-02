@@ -155,6 +155,8 @@ model School {
   outbox          OutboxItem[]
   dunningRuns     DunningRun[]
   dunningEvents   DunningEvent[]
+  gradedSheets    GradedSheet[]
+  testReports     TestReport[]
 }
 
 model AcademicYear {
@@ -1001,4 +1003,52 @@ model DunningEvent {
 
   @@index([schoolId, dunningRunId])
   @@index([dunningRunId, createdAt])
+}
+
+// =====================================================================
+// AI TEST & GRADING — deterministic scoring + provenance-stamped reports
+// =====================================================================
+
+/// A graded test sheet for one student. Scores are DETERMINISTIC compute
+/// (never LLM): totals/percentage are derived from `items` and unit-tested for
+/// exact equality. The LLM only phrases the report narrative around these numbers.
+model GradedSheet {
+  id           String       @id @default(uuid())
+  schoolId     String
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  testName     String
+  studentId    String
+  items        Json         // [{ topic, awarded, max }]
+  totalAwarded Float
+  totalMax     Float
+  percentage   Float
+
+  reports      TestReport[]
+  createdAt    DateTime     @default(now())
+
+  @@index([schoolId, studentId])
+}
+
+/// A parent-facing report generated from a GradedSheet. AI-assisted narrative
+/// only; numbers come from the deterministic scorer. Watermarked + provenance-
+/// logged; never released to a parent until a teacher approves (HITL).
+model TestReport {
+  id            String      @id @default(uuid())
+  schoolId      String
+  school        School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  gradedSheetId String
+  gradedSheet   GradedSheet @relation(fields: [gradedSheetId], references: [id], onDelete: Cascade)
+
+  studentId     String
+  body          String
+  provenanceId  String?     // ai_generations.id
+  humanReviewed Boolean     @default(false)
+  reviewerId    String?
+  sentAt        DateTime?
+
+  createdAt     DateTime    @default(now())
+
+  @@index([schoolId, studentId])
 }

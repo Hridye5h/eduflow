@@ -26,6 +26,8 @@ import { ConsentModule } from './consent/consent.module';
 import { ProvenanceModule } from './provenance/provenance.module';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { DunningModule } from './dunning/dunning.module';
+import { RazorpayModule } from './razorpay/razorpay.module';
+import { GradingModule } from './grading/grading.module';
 import { TestHelpersModule } from './_test-helpers/test-helpers.module';
 
 const testHelpers = process.env.ENABLE_TEST_HELPERS === 'true' ? [TestHelpersModule] : [];
@@ -56,6 +58,8 @@ const testHelpers = process.env.ENABLE_TEST_HELPERS === 'true' ? [TestHelpersMod
     ConsentModule,
     DunningModule,
     WhatsAppModule,
+    RazorpayModule,
+    GradingModule,
     ...testHelpers,
   ],
 })

@@ -133,6 +133,25 @@ export class DunningService {
     });
   }
 
+  /** Stop every active dunning run for a fee that just got paid (Razorpay webhook). */
+  async markPaidByFeePayment(feePaymentId: string): Promise<{ stopped: number }> {
+    const runs = await this.prisma.db.dunningRun.findMany({
+      where: {
+        feePaymentId,
+        status: { in: [DunningStatus.ACTIVE, DunningStatus.AWAITING_APPROVAL] },
+      },
+      select: { id: true, schoolId: true },
+    });
+    for (const r of runs) {
+      await this.transition({ id: r.id, schoolId: r.schoolId, stage: 0 } as DunningRun, {
+        status: DunningStatus.PAID,
+        action: DunningAction.MARKED_PAID,
+        detail: 'fee paid (Razorpay)',
+      });
+    }
+    return { stopped: runs.length };
+  }
+
   /** Manually stop a run. */
   async stopRun(runId: string, detail?: string): Promise<void> {
     await this.transition({ id: runId, schoolId: TenantContext.schoolId()!, stage: 0 } as DunningRun, {
