@@ -1,19 +1,18 @@
-# Render Blueprint — provisions API + Postgres
+# Render Blueprint — EduFlow API (release-clean branch: RLS-enforced deploy)
 # Push to GitHub then go to Render → New → Blueprint → connect repo.
 #
+# DATABASE: external Neon, already provisioned with the schema, RLS policies, and
+# the non-bypass `eduflow_app` runtime role — so multi-tenant isolation is actually
+# enforced in production. (The team's main branch uses a Render-managed Postgres
+# without the two-role RLS setup; this branch points at Neon instead.) See the
+# "RLS-enforced deploy" note at the top of DEPLOY.md.
+#
 # Notes for first deploy:
-# - Uses --no-frozen-lockfile so the build works without a committed pnpm-lock.yaml.
-#   Render will generate its own lockfile during install.
-# - Uses `prisma db push` (no migration history). For a pilot with a fresh DB this
-#   is fine. Once you have real data, generate migrations and switch to
-#   `prisma migrate deploy`.
+# - --no-frozen-lockfile so the build works without a committed pnpm-lock.yaml.
+# - NO `prisma db push` here: the Neon schema already exists, the runtime role has
+#   no DDL rights, and we never want --accept-data-loss against a real DB. If the
+#   schema changes, push from local via DIRECT_URL and re-apply prisma/rls.sql.
 # - healthCheckPath wakes the dyno; Render pings /health on cold-start.
-
-databases:
-  - name: eduflow-db
-    plan: free
-    databaseName: eduflow
-    user: eduflow
 
 services:
   - type: web
@@ -22,13 +21,15 @@ services:
     plan: free
     rootDir: apps/api
     healthCheckPath: /health
-    buildCommand: cd ../.. && npm i -g pnpm@9 && NODE_ENV=development pnpm install --no-frozen-lockfile && cd apps/api && pnpm exec prisma generate && pnpm exec prisma db push --accept-data-loss --skip-generate && pnpm run build
+    buildCommand: cd ../.. && npm i -g pnpm@9 && NODE_ENV=development pnpm install --no-frozen-lockfile && cd apps/api && pnpm exec prisma generate && pnpm run build
     startCommand: node dist/src/main
     envVars:
+      # Neon eduflow_app (non-bypass) — RLS enforced. Set in dashboard.
       - key: DATABASE_URL
-        fromDatabase:
-          name: eduflow-db
-          property: connectionString
+        sync: false
+      # Neon neondb_owner — migrations/DDL only. Set in dashboard.
+      - key: DIRECT_URL
+        sync: false
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -37,13 +38,34 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: "7d"
+      # /docs is handy for the XPRIZE demo; flip to "false" for real prod.
       - key: ENABLE_SWAGGER
-        value: "false"
+        value: "true"
       # NEVER set ENABLE_TEST_HELPERS=true in production — it exposes plaintext OTPs.
       - key: ENABLE_TEST_HELPERS
         value: "false"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       - key: CORS_ORIGINS
         sync: false        # set in dashboard: comma list incl. your vercel URL
+      # ---- optional providers: leave blank until configured ----
+      - key: REDIS_URL
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        value: eduflow-verify-prod
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: DIGILOCKER_CLIENT_ID
+        sync: false
+      # ---- email / uploads (optional) ----
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

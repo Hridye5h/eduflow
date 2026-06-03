@@ -1,5 +1,27 @@
 # Deploying EduFlow
 
+> ## ⚡ This branch (`release-clean`) deploys WITH RLS — read this first
+>
+> This branch adds the multi-tenant **Row-Level Security** spine, so the deploy
+> differs from the team flow documented below in two ways. The API points at the
+> **Neon** database that already has the schema, RLS policies, and the non-bypass
+> `eduflow_app` role — so tenant isolation is actually enforced in production.
+>
+> 1. **Database = Neon, not a Render-managed Postgres.** `render.yaml` on this
+>    branch has no `databases:` block. Set these as Render secrets (values from
+>    your local `apps/api/.env`): `DATABASE_URL` (Neon `eduflow_app`),
+>    `DIRECT_URL` (Neon `neondb_owner`), `GEMINI_API_KEY`.
+> 2. **No `prisma db push` on deploy.** The Neon schema already exists and the
+>    runtime role has no DDL rights. For a schema change, push locally via
+>    `DIRECT_URL` then re-apply `prisma/rls.sql` (`pnpm --filter api run db:rls`).
+>
+> Everything else below (Vercel for the web, email, Cloudinary, mobile, CI,
+> troubleshooting) still applies — just ignore the Render-Postgres / `prisma db
+> push` specifics. **Before sharing the URL, rotate the Neon `neondb_owner`
+> password** (it was exposed in chat) and update `DIRECT_URL`.
+
+---
+
 Three pieces: **GitHub** (source), **Render** (API + Postgres), **Vercel** (web). Mobile builds locally via Expo.
 
 > 📋 **Cloud-only workflow (no local install).** This guide is written for the case where you can't run `pnpm install` locally. You push to GitHub, CI proves the build & tests pass, then Render + Vercel deploy from the same commit. See [§ 8](#8-cloud-only-workflow-no-local-install) for what to watch out for.
