@@ -226,19 +226,32 @@ export class DunningService {
     // Stages 1–3 get warm Hinglish phrasing via the LLM; the legal-tone stages
     // 4–5 stay on the deterministic template (no model drift). Falls back to the
     // template if no LLM is configured or the call fails.
-    const text =
-      stageNo <= 3
-        ? await this.llm.generate(
-            `Rewrite this fee reminder for an Indian parent in warm, respectful Hinglish. Keep the amount, the due date, the UPI mention, the AI-disclosure line, and "Reply STOP". 2–3 short lines.\n\n${template}`,
-            { language: 'hinglish', fallback: template, maxTokens: 220 },
-          )
-        : template;
+    let text = template;
+    let model = 'dunning-template-v1';
+    if (stageNo <= 3) {
+      const gen = await this.llm.generateWithMeta(
+        `Rewrite the reminder below for an Indian parent in warm, respectful Hinglish (Hindi in Latin script). Keep the amount, the due date, the UPI mention, the "AI-assisted" disclosure line, and "Reply STOP". Output 2–3 short lines.\n\nReminder:\n${template}`,
+        {
+          language: 'hinglish',
+          fallback: template,
+          maxTokens: 220,
+          // Chat-tuned models otherwise reply with preamble + several markdown
+          // "options"; this forces exactly one clean, send-ready message.
+          system:
+            'You write a single fee-reminder WhatsApp message. Output ONLY the final message text — no preamble, no greeting to the operator, no alternatives or options, no markdown, no bullet points, no surrounding quotes. Exactly one message.',
+        },
+      );
+      text = gen.text;
+      // Record the real model when the LLM produced the copy; keep the template
+      // tag on fallback. Honest provenance for the IT-Rules ledger.
+      if (gen.model !== 'template-fallback') model = gen.model;
+    }
     // Provenance stamp (no network) before the write — it IS AI-assisted copy.
     await this.provenance.stamp({
       schoolId: run.schoolId,
       artefactType: 'dunning',
       content: text,
-      model: 'dunning-template-v1',
+      model,
       humanReviewed: action === DunningAction.APPROVED_SENT,
     });
 

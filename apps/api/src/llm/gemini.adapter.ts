@@ -20,13 +20,21 @@ export class GeminiAdapter implements LlmAdapter {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new Error('GEMINI_API_KEY not set');
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${key}`;
+    // API key goes in the x-goog-api-key header (not the query string): robust to
+    // the newer AQ.* key format and keeps the secret out of URLs/proxy logs.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
     const body = {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       ...(opts.system ? { systemInstruction: { parts: [{ text: opts.system }] } } : {}),
       generationConfig: {
         temperature: opts.temperature ?? 0.4,
         maxOutputTokens: opts.maxTokens ?? 512,
+        // Gemini 2.5 Flash "thinks" by default, and those thinking tokens count
+        // against maxOutputTokens — which silently truncates short generations to
+        // a few visible tokens. EduFlow's calls (reminders, feedback, OCR cleanup)
+        // don't need a scratchpad, so disable it: the full budget goes to the
+        // visible answer. (Set a positive budget here if a feature ever needs it.)
+        thinkingConfig: { thinkingBudget: 0 },
       },
     };
 
@@ -35,7 +43,7 @@ export class GeminiAdapter implements LlmAdapter {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify(body),
         signal: ctrl.signal,
       });

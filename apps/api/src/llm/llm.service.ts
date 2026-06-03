@@ -17,15 +17,27 @@ export class LlmService {
   private readonly sarvam = new SarvamAdapter();
 
   async generate(prompt: string, opts: LlmGenerateOpts = {}): Promise<string> {
+    return (await this.generateWithMeta(prompt, opts)).text;
+  }
+
+  /**
+   * Like generate(), but also reports which model produced the text — or
+   * `template-fallback` when nothing was configured / every call failed. Callers
+   * that record provenance use this so the ledger names the real model.
+   */
+  async generateWithMeta(
+    prompt: string,
+    opts: LlmGenerateOpts = {},
+  ): Promise<{ text: string; model: string }> {
     for (const adapter of this.route(opts.language)) {
       if (!adapter.isConfigured()) continue;
       try {
-        return await adapter.generate(prompt, opts);
+        return { text: await adapter.generate(prompt, opts), model: adapter.name };
       } catch (e) {
         this.logger.warn(`${adapter.name} failed, trying next: ${(e as Error).message}`);
       }
     }
-    return opts.fallback ?? '';
+    return { text: opts.fallback ?? '', model: 'template-fallback' };
   }
 
   anyConfigured(): boolean {

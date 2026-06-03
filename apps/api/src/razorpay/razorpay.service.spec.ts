@@ -4,7 +4,7 @@ import { DunningStatus, FeeStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant-context';
 import { ProvenanceService } from '../provenance/provenance.service';
-import { LlmService } from '../llm/llm.service';
+import { fakeLlm } from '../test-utils/llm';
 import { DunningService } from '../dunning/dunning.service';
 import { RazorpayService } from './razorpay.service';
 
@@ -18,7 +18,7 @@ function sign(secret: string, body: Buffer): string {
 d('RazorpayService (closes the dunning loop)', () => {
   const SECRET = 'rzp-webhook-secret';
   const prisma = new PrismaService();
-  const dunning = new DunningService(prisma, new ProvenanceService(prisma), new LlmService());
+  const dunning = new DunningService(prisma, new ProvenanceService(prisma), fakeLlm());
   const svc = new RazorpayService(prisma, dunning);
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   let schoolId = '';

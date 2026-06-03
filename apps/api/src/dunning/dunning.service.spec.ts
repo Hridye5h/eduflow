@@ -3,7 +3,7 @@ import { DunningAction, DunningStatus, OutboxKind } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../common/tenant-context';
 import { ProvenanceService } from '../provenance/provenance.service';
-import { LlmService } from '../llm/llm.service';
+import { fakeLlm } from '../test-utils/llm';
 import { DunningService } from './dunning.service';
 
 const hasDb = !!process.env.DATABASE_URL;
@@ -14,7 +14,7 @@ const QUIET = new Date('2026-06-02T17:30:00.000Z'); // IST 23:00
 
 d('DunningService (guardrailed state machine)', () => {
   const prisma = new PrismaService();
-  const svc = new DunningService(prisma, new ProvenanceService(prisma), new LlmService());
+  const svc = new DunningService(prisma, new ProvenanceService(prisma), fakeLlm());
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   let schoolId = '';
   const inTenant = <T>(fn: () => Promise<T>) => TenantContext.run({ schoolId }, fn);
