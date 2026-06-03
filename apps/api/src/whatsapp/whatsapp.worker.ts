@@ -7,7 +7,7 @@ import { DunningService } from '../dunning/dunning.service';
 import { WA_QUEUE_NAME } from './job-queue.port';
 import { WHATSAPP_SENDER, WhatsAppSender, WhatsAppSendInput } from './whatsapp-sender.port';
 
-interface DispatchedJob {
+export interface DispatchedJob {
   outboxId: string;
   schoolId: string;
   kind: 'PROCESS_INBOUND' | 'SEND_MESSAGE';
@@ -42,7 +42,7 @@ export class WhatsAppWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
     this.connection = new IORedis(url, { maxRetriesPerRequest: null });
-    this.worker = new Worker(WA_QUEUE_NAME, (job: Job) => this.handle(job.data as DispatchedJob), {
+    this.worker = new Worker(WA_QUEUE_NAME, (job: Job) => this.dispatch(job.data as DispatchedJob), {
       connection: this.connection as unknown as ConnectionOptions,
       concurrency: 5,
     });
@@ -51,7 +51,8 @@ export class WhatsAppWorker implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  private async handle(data: DispatchedJob): Promise<void> {
+  /** Process one job — shared by the BullMQ worker and the in-process queue. */
+  async dispatch(data: DispatchedJob): Promise<void> {
     await TenantContext.run({ schoolId: data.schoolId }, async () => {
       if (data.kind === 'PROCESS_INBOUND' && data.refId) {
         // Stop-word guardrail: a parent's "STOP"/"lawyer"/"court" halts dunning
