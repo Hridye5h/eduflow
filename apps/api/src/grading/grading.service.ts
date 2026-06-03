@@ -61,15 +61,26 @@ export class GradingService {
     // The LLM only phrases the narrative; the deterministic numbers are passed in
     // and must not change (the teacher's HITL approval is the safety net). Falls
     // back to the exact template if no LLM is configured.
-    const body = await this.llm.generate(
-      `You are a coaching teacher writing a brief, warm parent note in simple English + Hindi. Use EXACTLY the numbers below — never change a score. Add one encouraging line and one concrete focus tip. Keep the final AI-assisted disclosure line.\n\n${template}`,
-      { language: 'hinglish', fallback: template, maxTokens: 320 },
+    const gen = await this.llm.generateWithMeta(
+      `Rewrite the parent note below in simple, warm English + Hindi (Hinglish). Use EXACTLY the numbers given — never change a score. Add one encouraging line and one concrete focus tip. Keep the final AI-assisted disclosure line.\n\n${template}`,
+      {
+        language: 'hinglish',
+        fallback: template,
+        maxTokens: 320,
+        // Chat-tuned models otherwise add preamble + markdown "options"; force a
+        // single clean, send-ready note.
+        system:
+          'You write a single parent-facing test-report note. Output ONLY the final note text — no preamble, no greeting to the operator, no alternative versions or options, no markdown, no surrounding quotes.',
+      },
     );
+    const body = gen.text;
     const stamp = await this.provenance.stamp({
       schoolId: sheet.schoolId,
       artefactType: 'test_report',
       content: body,
-      model: 'report-template-v1',
+      // Record the real model when the LLM phrased the note; keep the template
+      // tag on fallback. Honest provenance for the IT-Rules ledger.
+      model: gen.model === 'template-fallback' ? 'report-template-v1' : gen.model,
     });
 
     return this.prisma.db.testReport.create({
