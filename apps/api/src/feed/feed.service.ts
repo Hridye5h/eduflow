@@ -48,14 +48,23 @@ export class FeedService {
   ) {
     const limit = Math.min(opts.limit ?? 25, 100);
 
-    // For students, restrict to their own section + school-wide posts.
-    let allowedSection: string | undefined = opts.sectionId;
+    // Restrict CLASS posts to the viewer's own section(s) + school-wide posts.
+    // Students → their section; parents → each linked child's section.
+    let allowedSections: string[] = opts.sectionId ? [opts.sectionId] : [];
     if (user.role === Role.STUDENT) {
       const me = await this.prisma.db.user.findUnique({
         where: { id: user.sub },
         select: { sectionId: true },
       });
-      allowedSection = me?.sectionId ?? undefined;
+      allowedSections = me?.sectionId ? [me.sectionId] : [];
+    } else if (user.role === Role.PARENT) {
+      const links = await this.prisma.db.parentLink.findMany({
+        where: { parentId: user.sub },
+        select: { student: { select: { sectionId: true } } },
+      });
+      allowedSections = [
+        ...new Set(links.map((l) => l.student?.sectionId).filter((s): s is string => !!s)),
+      ];
     }
 
     const where: any = {
@@ -63,7 +72,9 @@ export class FeedService {
       publishedAt: { lte: new Date() },
       OR: [
         { scope: PostScope.SCHOOL },
-        ...(allowedSection ? [{ scope: PostScope.CLASS, sectionId: allowedSection }] : []),
+        ...(allowedSections.length
+          ? [{ scope: PostScope.CLASS, sectionId: { in: allowedSections } }]
+          : []),
       ],
       ...(opts.type && { type: opts.type }),
     };
@@ -76,7 +87,7 @@ export class FeedService {
         assignment: true,
       },
       orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
-      take: limit + 1,
+      take: limit,
       ...(opts.cursor && { skip: 1, cursor: { id: opts.cursor } }),
     });
   }

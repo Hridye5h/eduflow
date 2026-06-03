@@ -39,6 +39,7 @@
   --color-success: #16a34a;
   --color-warn:    #d97706;
   --color-danger:  #dc2626;
+  --color-danger-soft: #fef2f2;
   --color-info:    #0284c7;
 
   /* Effects */
@@ -245,6 +246,17 @@ html, body {
     rgba(241,245,249,0.4) 100%);
   background-size: 480px 100%;
   animation: shimmer 1.4s linear infinite;
+}
+
+/* Animated accent line — e.g. a freshly-submitted highlight */
+@keyframes shimmer-line {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+.shimmer-line {
+  background: linear-gradient(90deg, transparent, rgba(79,70,229,0.55), transparent);
+  background-size: 200% 100%;
+  animation: shimmer-line 2s linear infinite;
 }
 
 /* --- Glow accents (CivicLoop "drop-shadow blue glow") --- */

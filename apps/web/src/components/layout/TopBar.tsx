@@ -20,6 +20,8 @@ export function TopBar({ title, eyebrow }: { title: string; eyebrow?: string }) 
           shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
           <Search className="h-4 w-4 text-[var(--color-text-muted)]" />
           <input
+            type="search"
+            aria-label="Search"
             placeholder="Search students, classes, posts…"
             className="bg-transparent outline-none flex-1 placeholder:text-[var(--color-text-subtle)]"
           />

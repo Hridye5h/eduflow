@@ -35,7 +35,9 @@ export default function RegisterPage() {
         body: JSON.stringify(form),
       });
       session.set(res.accessToken, { name: form.adminName, role: 'SUPER_ADMIN' }, form.subdomain);
-      router.push('/dashboard');
+      // Land in the role-coded principal portal (matches the login flow), not the
+      // legacy /(app) admin shell.
+      router.push('/principal/dashboard');
     } catch (e: any) {
       setErr(e.message || 'Registration failed');
     } finally {
