@@ -47,8 +47,12 @@ const STATS = [
   { label: 'Multi-tenant',     value: '∞',  hint: 'Every school its own portal' },
 ];
 
+const TABS = ['Features', 'Highlights', 'Sign in'] as const;
+type Tab = (typeof TABS)[number];
+
 export default function Landing() {
   const [roleIdx, setRoleIdx] = useState(0);
+  const [tab, setTab] = useState<Tab>('Features');
   useEffect(() => {
     const t = setInterval(() => setRoleIdx((i) => (i + 1) % ROLE_ROTATOR.length), 2200);
     return () => clearInterval(t);
@@ -60,15 +64,11 @@ export default function Landing() {
       {/* Decorative orbs (pulsing) */}
       <div
         className="pointer-events-none absolute -top-32 -right-24 w-[34rem] h-[34rem] rounded-full pulse-soft"
-        style={{ background: 'radial-gradient(closest-side, rgba(79,70,229,0.25), transparent)' }}
+        style={{ background: 'radial-gradient(closest-side, rgba(79,70,229,0.22), transparent)' }}
       />
       <div
         className="pointer-events-none absolute -bottom-24 -left-24 w-[30rem] h-[30rem] rounded-full pulse-soft"
-        style={{ background: 'radial-gradient(closest-side, rgba(20,184,166,0.22), transparent)', animationDelay: '3s' }}
-      />
-      <div
-        className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 w-[20rem] h-[20rem] rounded-full pulse-soft"
-        style={{ background: 'radial-gradient(closest-side, rgba(217,119,6,0.10), transparent)', animationDelay: '5s' }}
+        style={{ background: 'radial-gradient(closest-side, rgba(20,184,166,0.20), transparent)', animationDelay: '3s' }}
       />
 
       <header className="relative z-10">
@@ -93,7 +93,7 @@ export default function Landing() {
       </header>
 
       {/* HERO */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-12 pb-12 sm:pt-16 sm:pb-16">
+      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-10 pb-8 sm:pt-14">
         <div className="grid lg:grid-cols-[1.15fr_1fr] gap-12 items-center">
           <div>
             <div className="ef-chip ef-chip-brand mb-5">
@@ -111,11 +111,7 @@ export default function Landing() {
 
             <p className="mt-5 text-lg sm:text-xl text-[var(--color-text-muted)] leading-relaxed">
               Made for{' '}
-              <span
-                key={role.word}
-                className="rotate-word font-semibold"
-                style={{ color: role.color }}
-              >
+              <span key={role.word} className="rotate-word font-semibold" style={{ color: role.color }}>
                 {role.word}
               </span>
               {' '}— attendance, marks, timetable, fees, and a class wall that actually gets used.
@@ -128,27 +124,6 @@ export default function Landing() {
               <Link href="/login" className="ef-btn ef-btn-outline">Sign in</Link>
             </div>
             <p className="mt-3 ef-eyebrow">No credit card · CBSE / ICSE / State board ready</p>
-
-            <div className="mt-10">
-              <div className="ef-eyebrow mb-3">Sign in by role</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {PORTALS.map(({ href, label, icon: Icon, accent, chipClass }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="ef-card flex flex-col items-center gap-1.5 py-3 group hover:border-[var(--color-brand)]/40 transition-all"
-                  >
-                    <span
-                      className="h-9 w-9 rounded-xl grid place-items-center transition-transform group-hover:scale-110"
-                      style={{ background: `${accent}14`, boxShadow: `0 0 18px ${accent}22` }}
-                    >
-                      <Icon className="h-4 w-4" style={{ color: accent }} strokeWidth={2.2} />
-                    </span>
-                    <span className={`ef-chip ${chipClass}`}>{label}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Floating mock-dashboard preview */}
@@ -160,82 +135,124 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* STATS BAND */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 py-8">
-        <div className="ef-card-strong grid grid-cols-2 sm:grid-cols-4 divide-x divide-[var(--color-border)] overflow-hidden">
-          {STATS.map((s) => (
-            <div key={s.label} className="p-5 text-center">
-              <div className="ef-eyebrow">{s.label}</div>
-              <div className="text-3xl font-bold tabular-nums tracking-tight mt-1.5">{s.value}</div>
-              <div className="text-xs text-[var(--color-text-muted)] mt-1">{s.hint}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 py-16">
-        <div className="text-center mb-10">
-          <div className="ef-eyebrow inline-flex items-center gap-1.5">
-            <Sparkles className="h-3 w-3" /> What's inside
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--color-text)] mt-2">
-            Everything a school needs — already wired.
-          </h2>
-          <p className="text-[var(--color-text-muted)] mt-3 max-w-2xl mx-auto">
-            Pilot-ready out of the box. Demo data, real-time chat, and printable report cards in
-            under five minutes.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATURES.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="ef-card p-5 group">
-              <div className="flex items-start gap-3">
-                <span
-                  className="h-10 w-10 rounded-xl grid place-items-center shrink-0 transition-transform group-hover:scale-110"
-                  style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
+      {/* TABBED CONTENT — replaces the old long stack of sections */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 pb-20">
+        <div role="tablist" aria-label="Learn more" className="flex justify-center">
+          <div className="inline-flex gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 backdrop-blur">
+            {TABS.map((t) => {
+              const selected = tab === t;
+              return (
+                <button
+                  key={t}
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setTab(t)}
+                  className={`px-4 sm:px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    selected ? 'text-white' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                  }`}
+                  style={selected ? { background: 'linear-gradient(180deg, #4f46e5 0%, #4338ca 100%)', boxShadow: '0 6px 18px rgba(79,70,229,0.30)' } : undefined}
                 >
-                  <Icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <h3 className="font-semibold tracking-tight">{title}</h3>
-                  <p className="text-sm text-[var(--color-text-muted)] mt-1.5 leading-snug">{body}</p>
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div key={tab} role="tabpanel" className="page-enter mt-8">
+          {tab === 'Features' && (
+            <div>
+              <div className="text-center mb-8">
+                <div className="ef-eyebrow inline-flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3" /> What&apos;s inside
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-text)] mt-2">
+                  Everything a school needs — already wired.
+                </h2>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {FEATURES.map(({ icon: Icon, title, body }) => (
+                  <div key={title} className="ef-card p-5 group">
+                    <div className="flex items-start gap-3">
+                      <span
+                        className="h-10 w-10 rounded-xl grid place-items-center shrink-0 transition-transform group-hover:scale-110"
+                        style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <h3 className="font-semibold tracking-tight">{title}</h3>
+                        <p className="text-sm text-[var(--color-text-muted)] mt-1.5 leading-snug">{body}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'Highlights' && (
+            <div className="max-w-4xl mx-auto">
+              <div className="ef-card-strong grid grid-cols-2 sm:grid-cols-4 divide-x divide-[var(--color-border)] overflow-hidden">
+                {STATS.map((s) => (
+                  <div key={s.label} className="p-5 text-center">
+                    <div className="ef-eyebrow">{s.label}</div>
+                    <div className="text-3xl font-bold tabular-nums tracking-tight mt-1.5">{s.value}</div>
+                    <div className="text-xs text-[var(--color-text-muted)] mt-1">{s.hint}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-[var(--color-text-muted)] mt-6 max-w-2xl mx-auto">
+                Pilot-ready out of the box — demo data, real-time chat, and printable report cards in under five minutes.
+              </p>
+            </div>
+          )}
+
+          {tab === 'Sign in' && (
+            <div className="max-w-3xl mx-auto">
+              <div className="ef-eyebrow text-center mb-3">Sign in by role</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {PORTALS.map(({ href, label, icon: Icon, accent, chipClass }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="ef-card flex flex-col items-center gap-1.5 py-4 group hover:border-[var(--color-brand)]/40 transition-all"
+                  >
+                    <span
+                      className="h-9 w-9 rounded-xl grid place-items-center transition-transform group-hover:scale-110"
+                      style={{ background: `${accent}14`, boxShadow: `0 0 18px ${accent}22` }}
+                    >
+                      <Icon className="h-4 w-4" style={{ color: accent }} strokeWidth={2.2} />
+                    </span>
+                    <span className={`ef-chip ${chipClass}`}>{label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="ef-card-strong p-8 mt-5 relative overflow-hidden text-center">
+                <div
+                  className="absolute inset-0 opacity-[0.06] pointer-events-none"
+                  style={{
+                    background:
+                      'radial-gradient(circle at 100% 0%, #4f46e5 0%, transparent 50%), ' +
+                      'radial-gradient(circle at 0% 100%, #14b8a6 0%, transparent 50%)',
+                  }}
+                />
+                <div className="relative">
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Try it with demo data in under a minute.</h2>
+                  <p className="text-[var(--color-text-muted)] mt-2.5 max-w-xl mx-auto">
+                    Create your school, or sign in as a Principal and click through the whole flow.
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-3">
+                    <Link href="/login/principal" className="ef-btn ef-btn-primary">
+                      <ShieldAlert className="h-4 w-4" /> Sign in as Principal
+                    </Link>
+                    <Link href="/register" className="ef-btn ef-btn-outline">Create your own school</Link>
+                  </div>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FINAL CTA */}
-      <section className="relative z-10 max-w-3xl mx-auto px-6 pb-20 text-center">
-        <div className="ef-card-strong p-10 relative overflow-hidden">
-          <div
-            className="absolute inset-0 opacity-[0.06] pointer-events-none"
-            style={{
-              background:
-                'radial-gradient(circle at 100% 0%, #4f46e5 0%, transparent 50%), ' +
-                'radial-gradient(circle at 0% 100%, #14b8a6 0%, transparent 50%)',
-            }}
-          />
-          <div className="relative">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Try it with demo data in under a minute.
-            </h2>
-            <p className="text-[var(--color-text-muted)] mt-3 max-w-xl mx-auto">
-              Sign in with the seed Principal account and click through the entire flow — students,
-              teachers, parents are pre-populated.
-            </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link href="/login/principal" className="ef-btn ef-btn-primary">
-                <ShieldAlert className="h-4 w-4" /> Sign in as Principal
-              </Link>
-              <Link href="/register" className="ef-btn ef-btn-outline">
-                Create your own school
-              </Link>
-            </div>
-          </div>
+          )}
         </div>
       </section>
     </main>
@@ -256,7 +273,7 @@ function PreviewCard({ role }: { role: { word: string; color: string } }) {
           E
         </div>
         <div>
-          <div className="ef-eyebrow capitalize">{role.word}'s dashboard</div>
+          <div className="ef-eyebrow capitalize">{role.word}&apos;s dashboard</div>
         </div>
       </div>
 
