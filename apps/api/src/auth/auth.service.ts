@@ -35,6 +35,21 @@ export class AuthService {
         },
       });
 
+      // Seed a current academic year (Indian Apr–Mar) so the dashboard works from
+      // day one — classes, marks, attendance and timetable all require a current
+      // year to exist, and there is no other UI to create the first one.
+      const now = new Date();
+      const startYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+      await this.prisma.db.academicYear.create({
+        data: {
+          schoolId: school.id,
+          label: `${startYear}-${startYear + 1}`,
+          startDate: new Date(Date.UTC(startYear, 3, 1)),
+          endDate: new Date(Date.UTC(startYear + 1, 2, 31)),
+          isCurrent: true,
+        },
+      });
+
       const password = await hashPassword(dto.adminPassword);
       const admin = await this.prisma.db.user.create({
         data: {
