@@ -5,11 +5,13 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser, SchoolId } from '../common/tenant.decorator';
+import { PrismaService } from '../prisma/prisma.service';
+import { assertStudentAccess, AccessUser } from '../common/student-access';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MarksController {
-  constructor(private marks: MarksService) {}
+  constructor(private marks: MarksService, private prisma: PrismaService) {}
 
   @Get('exams')
   list(@SchoolId() schoolId: string, @Query('classId') classId?: string) {
@@ -48,16 +50,19 @@ export class MarksController {
   }
 
   @Get('exams/:id/summary')
+  @Roles(Role.SUPER_ADMIN, Role.TEACHER)
   summary(@SchoolId() schoolId: string, @Param('id') id: string) {
     return this.marks.classSummary(schoolId, id);
   }
 
   @Get('students/:id/report-card')
-  reportCard(
+  async reportCard(
     @SchoolId() schoolId: string,
+    @CurrentUser() user: AccessUser,
     @Param('id') id: string,
     @Query('academicYearId') yearId?: string,
   ) {
+    await assertStudentAccess(this.prisma, user, id);
     return this.marks.studentReport(schoolId, id, yearId);
   }
 }

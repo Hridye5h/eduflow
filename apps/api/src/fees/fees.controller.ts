@@ -4,12 +4,14 @@ import { FeesService } from './fees.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { SchoolId } from '../common/tenant.decorator';
+import { CurrentUser, SchoolId } from '../common/tenant.decorator';
+import { PrismaService } from '../prisma/prisma.service';
+import { assertStudentAccess, AccessUser } from '../common/student-access';
 
 @Controller('fees')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class FeesController {
-  constructor(private fees: FeesService) {}
+  constructor(private fees: FeesService, private prisma: PrismaService) {}
 
   @Get('structures')
   list(@SchoolId() schoolId: string, @Query('classId') classId?: string) {
@@ -31,7 +33,12 @@ export class FeesController {
   }
 
   @Get('student/:studentId')
-  forStudent(@SchoolId() schoolId: string, @Param('studentId') studentId: string) {
+  async forStudent(
+    @SchoolId() schoolId: string,
+    @CurrentUser() user: AccessUser,
+    @Param('studentId') studentId: string,
+  ) {
+    await assertStudentAccess(this.prisma, user, studentId);
     return this.fees.forStudent(schoolId, studentId);
   }
 

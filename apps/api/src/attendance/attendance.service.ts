@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { AttendanceStatus, LeaveStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AccessUser } from '../common/student-access';
 
 type MarkRow = { studentId: string; status: AttendanceStatus; note?: string };
 
@@ -170,9 +171,21 @@ export class AttendanceService {
     });
   }
 
-  async listLeaves(schoolId: string, status?: LeaveStatus) {
+  async listLeaves(schoolId: string, user: AccessUser, status?: LeaveStatus) {
+    // Staff see all leaves; a student sees only their own and a parent only their
+    // linked children's — so the list isn't an info leak across the school.
+    const where: any = { schoolId, ...(status && { status }) };
+    if (user.role === Role.STUDENT) {
+      where.studentId = user.sub;
+    } else if (user.role === Role.PARENT) {
+      const links = await this.prisma.db.parentLink.findMany({
+        where: { parentId: user.sub },
+        select: { studentId: true },
+      });
+      where.studentId = { in: links.map((l) => l.studentId) };
+    }
     return this.prisma.db.leaveApplication.findMany({
-      where: { schoolId, ...(status && { status }) },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 200,
     });

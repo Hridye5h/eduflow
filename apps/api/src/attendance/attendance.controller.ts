@@ -14,11 +14,13 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser, SchoolId } from '../common/tenant.decorator';
+import { PrismaService } from '../prisma/prisma.service';
+import { assertStudentAccess, AccessUser } from '../common/student-access';
 
 @Controller('attendance')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AttendanceController {
-  constructor(private attendance: AttendanceService) {}
+  constructor(private attendance: AttendanceService, private prisma: PrismaService) {}
 
   @Get('section/:sectionId')
   forDate(
@@ -41,11 +43,13 @@ export class AttendanceController {
   }
 
   @Get('student/:studentId/month')
-  studentMonth(
+  async studentMonth(
     @SchoolId() schoolId: string,
+    @CurrentUser() user: AccessUser,
     @Param('studentId') studentId: string,
     @Query('month') month: string,
   ) {
+    await assertStudentAccess(this.prisma, user, studentId);
     return this.attendance.studentMonth(schoolId, studentId, month);
   }
 
@@ -77,7 +81,11 @@ export class AttendanceController {
   }
 
   @Get('leaves')
-  listLeaves(@SchoolId() schoolId: string, @Query('status') status?: LeaveStatus) {
-    return this.attendance.listLeaves(schoolId, status);
+  listLeaves(
+    @SchoolId() schoolId: string,
+    @CurrentUser() user: AccessUser,
+    @Query('status') status?: LeaveStatus,
+  ) {
+    return this.attendance.listLeaves(schoolId, user, status);
   }
 }

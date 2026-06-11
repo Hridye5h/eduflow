@@ -65,6 +65,7 @@ export class ConsentController {
   }
 
   @Get('status/:studentId')
+  @Roles(Role.SUPER_ADMIN, Role.TEACHER)
   async status(@Param('studentId') studentId: string, @Query('purpose') purpose: string) {
     const state = await this.consent.getState(studentId, purpose);
     return { studentId, purpose, status: state };
