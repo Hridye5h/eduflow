@@ -51,16 +51,19 @@ export class DunningController {
   }
 
   @Get()
+  @Roles(Role.SUPER_ADMIN)
   list(@Query('status') status?: DunningStatus) {
     return this.dunning.listRuns(status);
   }
 
   @Get('summary')
+  @Roles(Role.SUPER_ADMIN)
   summary() {
     return this.dunning.summary();
   }
 
   @Get(':id')
+  @Roles(Role.SUPER_ADMIN)
   get(@Param('id') id: string) {
     return this.dunning.getRun(id);
   }

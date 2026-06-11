@@ -17,8 +17,9 @@
 >
 > Everything else below (Vercel for the web, email, Cloudinary, mobile, CI,
 > troubleshooting) still applies — just ignore the Render-Postgres / `prisma db
-> push` specifics. **Before sharing the URL, rotate the Neon `neondb_owner`
-> password** (it was exposed in chat) and update `DIRECT_URL`.
+> push` specifics. **Use strong, secret credentials for the Neon `neondb_owner`
+> and `eduflow_app` roles** and set them only as Render/host environment
+> variables (`DATABASE_URL` / `DIRECT_URL`) — never in the repo.
 
 ---
 

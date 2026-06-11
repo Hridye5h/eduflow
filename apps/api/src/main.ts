@@ -25,8 +25,10 @@ async function bootstrap() {
     origin: (origin, cb) => {
       // allow same-origin / curl / mobile
       if (!origin) return cb(null, true);
-      // in dev (no CORS_ORIGINS set) allow everything
-      if (allowed.length === 0) return cb(null, true);
+      // Dev convenience only: with no CORS_ORIGINS set, allow any origin OUTSIDE
+      // production. In prod we fall through to the *.vercel.app allowance below
+      // and block everything else, rather than allowing all origins.
+      if (allowed.length === 0 && process.env.NODE_ENV !== 'production') return cb(null, true);
       // allow exact match
       if (allowed.includes(origin)) return cb(null, true);
       // allow any *.vercel.app preview deploys

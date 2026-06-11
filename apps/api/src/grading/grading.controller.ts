@@ -32,10 +32,10 @@ export class GradingController {
   @Roles(Role.SUPER_ADMIN, Role.TEACHER)
   approve(
     @Param('id') id: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: { sub: string },
     @Body() body: { toPhone: string },
   ) {
-    return this.grading.approveAndSend(id, user.id, body.toPhone);
+    return this.grading.approveAndSend(id, user.sub, body.toPhone);
   }
 
   @Get('sheet/:id')

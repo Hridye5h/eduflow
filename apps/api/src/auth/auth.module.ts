@@ -7,12 +7,22 @@ import { RolesGuard } from './roles.guard';
 
 const expiresIn = (process.env.JWT_EXPIRES_IN || '7d') as any;
 
+function jwtSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (s) return s;
+  // Never boot production with the public dev default — fail fast instead.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be set in production');
+  }
+  return 'dev-secret-change-me';
+}
+
 @Global()
 @Module({
   imports: [
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_SECRET || 'dev-secret-change-me',
+      secret: jwtSecret(),
       signOptions: { expiresIn },
     }),
   ],
