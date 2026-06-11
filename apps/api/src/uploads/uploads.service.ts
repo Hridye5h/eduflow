@@ -35,6 +35,15 @@ export class UploadsService {
     if (!this.ready) throw new BadRequestException('File storage not configured on server');
     if (!file?.buffer) throw new BadRequestException('No file provided');
 
+    // Defense against MIME spoofing: reject any file whose actual bytes are
+    // markup (HTML / SVG / XML). The mimetype the client declares is trusted by
+    // the upload filter, but only the content tells us if it would be served as
+    // executable web content (stored XSS) from the CDN.
+    const head = file.buffer.subarray(0, 256).toString('utf8').trimStart().toLowerCase();
+    if (head.startsWith('<')) {
+      throw new BadRequestException('File content not allowed');
+    }
+
     const result: any = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
