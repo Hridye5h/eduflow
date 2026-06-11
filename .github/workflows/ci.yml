@@ -2,48 +2,67 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, release-clean]
   pull_request:
 
 jobs:
-  api-test:
-    name: API e2e tests
+  api:
+    name: API — RLS isolation + tests + build
     runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: eduflow
-          POSTGRES_PASSWORD: eduflowpass
+          POSTGRES_USER: eduflow_owner
+          POSTGRES_PASSWORD: ownerpass
           POSTGRES_DB: eduflow_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U eduflow -d eduflow_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+          --health-cmd "pg_isready -U eduflow_owner -d eduflow_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgresql://eduflow:eduflowpass@localhost:5432/eduflow_test?schema=public
+      # Two-role RLS setup mirroring production: DDL/migrations run as the owner;
+      # runtime (the test suite) connects as a NON-BYPASSRLS role, so rls.spec.ts
+      # genuinely proves cross-tenant isolation instead of running as a superuser
+      # that silently bypasses RLS.
+      DIRECT_URL: postgresql://eduflow_owner:ownerpass@localhost:5432/eduflow_test?schema=public
+      DATABASE_URL: postgresql://eduflow_app:app@localhost:5432/eduflow_test?schema=public
       JWT_SECRET: ci-secret
       ENABLE_TEST_HELPERS: 'true'
+      REDIS_URL: ''
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: pnpm install --no-frozen-lockfile
-      - name: Sync DB schema
+      - name: Create non-bypass runtime role
+        run: PGPASSWORD=ownerpass psql -h localhost -U eduflow_owner -d eduflow_test -v ON_ERROR_STOP=1 -c "CREATE ROLE eduflow_app LOGIN PASSWORD 'app';"
+      - name: Push schema (owner / DIRECT_URL)
         working-directory: apps/api
-        run: pnpm exec prisma db push --accept-data-loss --skip-generate
-      - name: Generate Prisma client
+        run: pnpm exec prisma db push --accept-data-loss
+      - name: Grant runtime role + apply RLS policies
         working-directory: apps/api
-        run: pnpm exec prisma generate
-      - name: Run e2e tests
+        run: |
+          PGPASSWORD=ownerpass psql -h localhost -U eduflow_owner -d eduflow_test -v ON_ERROR_STOP=1 \
+            -c "GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO eduflow_app;" \
+            -c "GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO eduflow_app;" \
+            -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO eduflow_app;" \
+            -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO eduflow_app;"
+          node prisma/apply-rls.cjs
+      - name: Typecheck
         working-directory: apps/api
-        run: pnpm test:e2e
+        run: pnpm exec tsc --noEmit
+      - name: Tests (incl. rls.spec — cross-tenant isolation under the non-bypass role)
+        working-directory: apps/api
+        run: pnpm exec jest --runInBand
+      - name: Build
+        working-directory: apps/api
+        run: pnpm run build
 
-  web-build:
-    name: Web build
+  web:
+    name: Web — typecheck + build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +73,10 @@ jobs:
       - name: Generate Prisma client (api workspace)
         working-directory: apps/api
         run: pnpm exec prisma generate
-      - name: Next build
+      - name: Typecheck
+        working-directory: apps/web
+        run: pnpm exec tsc --noEmit
+      - name: Build
         working-directory: apps/web
         env:
           NEXT_PUBLIC_API_BASE: https://example.invalid
