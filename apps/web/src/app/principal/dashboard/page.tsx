@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Users, GraduationCap, Building2, CalendarCheck, BookOpenCheck, Wallet,
-  Megaphone, BarChart3, ArrowRight, AlertTriangle, ShieldAlert,
+  Megaphone, BarChart3, ArrowRight, AlertTriangle, ShieldAlert, Sparkles,
 } from 'lucide-react';
 import { api, session } from '@/lib/api';
 import { TopBar } from '@/components/layout/TopBar';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Area, AreaChart,
@@ -87,6 +88,9 @@ export default function PrincipalDashboard() {
           schoolSubdomain={session.subdomain() ?? '—'}
           academicYear="2026-2027"
         />
+
+        {/* Empty school → offer one-click sample data */}
+        {stats && stats.students === 0 && <SampleDataCard />}
 
         {/* Stats row */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -383,5 +387,55 @@ function QuickAction({ href, icon, label }: { href: string; icon: React.ReactNod
       <span className="text-sm font-medium text-[var(--color-text)] flex-1">{label}</span>
       <ArrowRight className="h-4 w-4 text-[var(--color-text-subtle)] group-hover:text-[var(--color-brand)] group-hover:translate-x-0.5 transition-all" />
     </Link>
+  );
+}
+
+/**
+ * Shown only while the school has zero students: lets a new principal (or a
+ * sales demo) fill the school with realistic sample data in one click instead
+ * of staring at empty tables.
+ */
+function SampleDataCard() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadSample() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/school/demo-data', {
+        method: 'POST',
+        token: session.token(),
+        subdomain: session.subdomain(),
+      });
+      window.location.reload();
+    } catch (e: any) {
+      setError(e.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card variant="solid">
+      <CardBody className="flex flex-wrap items-center gap-4">
+        <span
+          className="h-11 w-11 rounded-xl grid place-items-center shrink-0"
+          style={{ background: `${ACCENT}10`, color: ACCENT }}
+        >
+          <Sparkles className="h-5 w-5" />
+        </span>
+        <div className="flex-1 min-w-[220px]">
+          <h3 className="font-semibold text-[var(--color-text)]">New school? Load sample data</h3>
+          <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+            Two classes, 44 students with parents, a month of attendance, exams, fees and a
+            timetable — so you can explore every screen before entering real data.
+          </p>
+          {error && <p className="text-sm text-[var(--color-danger)] mt-1">{error}</p>}
+        </div>
+        <Button onClick={loadSample} disabled={busy}>
+          {busy ? 'Loading sample data…' : 'Load sample data'}
+        </Button>
+      </CardBody>
+    </Card>
   );
 }
