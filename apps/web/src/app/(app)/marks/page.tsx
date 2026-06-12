@@ -117,7 +117,7 @@ export default function MarksPage() {
             {exams.length === 0 ? (
               <div className="p-8 text-center text-[var(--color-text-muted)]">No exams yet.</div>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                 <thead>
                   <tr className="text-left border-b border-[var(--color-border)] text-[var(--color-text-subtle)] text-xs uppercase tracking-wider">
                     <th className="px-5 py-3">Name</th>
@@ -152,7 +152,7 @@ export default function MarksPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </CardBody>
         </Card>

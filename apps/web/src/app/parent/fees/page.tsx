@@ -96,7 +96,7 @@ export default function ParentFeesPage() {
                     <p>All fees paid.</p>
                   </div>
                 ) : (
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="text-left border-b border-[var(--color-border)] text-xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                         <th className="px-5 py-3">Item</th>
@@ -140,7 +140,7 @@ export default function ParentFeesPage() {
                         );
                       })}
                     </tbody>
-                  </table>
+                  </table></div>
                 )}
               </CardBody>
             </Card>
@@ -149,7 +149,7 @@ export default function ParentFeesPage() {
               <Card variant="solid">
                 <CardHeader eyebrow="History" title="Payments made" subtitle={`${history.length} payment${history.length === 1 ? '' : 's'}`} />
                 <CardBody className="p-0">
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="text-left border-b border-[var(--color-border)] text-xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                         <th className="px-5 py-3">Item</th>
@@ -178,7 +178,7 @@ export default function ParentFeesPage() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </CardBody>
               </Card>
             )}

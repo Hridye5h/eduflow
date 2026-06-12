@@ -123,7 +123,7 @@ export default function TeacherReportsPage() {
             {activity.length === 0 ? (
               <div className="p-8 text-center text-[var(--color-text-muted)]">No teacher activity yet.</div>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                 <thead>
                   <tr className="text-left border-b border-[var(--color-border)] text-xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                     <th className="px-5 py-3 w-12">#</th>
@@ -156,7 +156,7 @@ export default function TeacherReportsPage() {
                     );
                   })}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </CardBody>
         </Card>

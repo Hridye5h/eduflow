@@ -127,7 +127,7 @@ export default function AttendancePage() {
             subtitle={`${summary.total} students · ${summary.PRESENT} present · ${summary.ABSENT} absent · ${summary.PENDING} pending`}
           />
           <CardBody className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
               <thead>
                 <tr className="text-left border-b border-[var(--color-border)] text-[var(--color-text-subtle)] text-xs uppercase tracking-wider">
                   <th className="px-5 py-3 w-16">Roll</th>
@@ -168,7 +168,7 @@ export default function AttendancePage() {
                   </tr>
                 )}
               </tbody>
-            </table>
+            </table></div>
           </CardBody>
         </Card>
       </div>

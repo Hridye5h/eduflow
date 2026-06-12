@@ -180,7 +180,7 @@ export default function FeesPage() {
                 }
               />
               <CardBody className="p-0">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                   <thead>
                     <tr className="text-left border-b border-[var(--color-border)] text-xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                       <th className="px-5 py-2 w-14">Roll</th>
@@ -228,7 +228,7 @@ export default function FeesPage() {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </CardBody>
             </Card>
           ))}

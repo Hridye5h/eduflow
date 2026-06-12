@@ -188,7 +188,7 @@ export default function AssignmentDetail() {
                 }
               />
               <CardBody className="p-0">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                   <thead>
                     <tr className="text-left border-b border-[var(--color-border)] text-xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                       <th className="px-5 py-3 w-14">Roll</th>
@@ -254,7 +254,7 @@ export default function AssignmentDetail() {
                       <tr><td colSpan={6} className="px-5 py-10 text-center text-[var(--color-text-muted)]">No students in this section.</td></tr>
                     )}
                   </tbody>
-                </table>
+                </table></div>
               </CardBody>
             </Card>
           </>
