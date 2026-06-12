@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { TopBar } from '@/components/layout/TopBar';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { api, session } from '@/lib/api';
+import { portalPrefix } from '@/lib/portal-path';
 import { ArrowRight, Plus, CheckCircle2 } from 'lucide-react';
 
 type ClassRow = { id: string; grade: number; label: string; sections: { id: string; name: string }[] };
@@ -24,6 +26,7 @@ type Exam = {
 const EXAM_TYPES = ['UNIT_TEST', 'MID_TERM', 'FINAL', 'PRACTICAL', 'ASSIGNMENT', 'OTHER'];
 
 export default function MarksPage() {
+  const base = portalPrefix(usePathname());
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -142,7 +145,7 @@ export default function MarksPage() {
                         )}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <Link href={`/marks/${e.id}`} className="ef-btn ef-btn-ghost text-sm">
+                        <Link href={`${base}/marks/${e.id}`} className="ef-btn ef-btn-ghost text-sm">
                           Open <ArrowRight className="h-4 w-4" />
                         </Link>
                       </td>

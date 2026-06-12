@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { PremiumLoader } from '@/components/common/PremiumLoader';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { session } from '@/lib/api';
+import { portalForRole } from '@/lib/role-config';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,6 +15,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!session.token()) {
       router.replace('/login');
+      return;
+    }
+    const u = session.user();
+    if (!u) {
+      router.replace('/login');
+      return;
+    }
+    // The legacy (app) shell is the admin console — only the principal/owner
+    // belongs here. Any other role is redirected to their own portal so a
+    // student or parent can never load an admin screen.
+    if (u.role !== 'SUPER_ADMIN') {
+      router.replace(portalForRole(u.role).defaultRoute);
       return;
     }
     setSchoolName(session.subdomain() ?? undefined);

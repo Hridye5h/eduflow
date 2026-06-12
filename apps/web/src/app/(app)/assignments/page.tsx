@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { TopBar } from '@/components/layout/TopBar';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { api, session } from '@/lib/api';
+import { portalPrefix } from '@/lib/portal-path';
 import { ArrowRight, Plus } from 'lucide-react';
 
 type ClassRow = { id: string; label: string; sections: { id: string; name: string }[] };
@@ -24,6 +26,7 @@ type AssignmentPost = {
 };
 
 export default function AssignmentsPage() {
+  const base = portalPrefix(usePathname());
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [sectionId, setSectionId] = useState('');
   const [items, setItems] = useState<AssignmentPost[]>([]);
@@ -133,7 +136,7 @@ export default function AssignmentsPage() {
                     <span className="ef-chip">{p.assignment!._count.submissions} submissions</span>
                   </div>
                 </div>
-                <Link href={`/assignments/${p.assignment!.id}`} className="ef-btn ef-btn-ghost text-sm">
+                <Link href={`${base}/assignments/${p.assignment!.id}`} className="ef-btn ef-btn-ghost text-sm">
                   Open <ArrowRight className="h-4 w-4" />
                 </Link>
               </CardBody>
