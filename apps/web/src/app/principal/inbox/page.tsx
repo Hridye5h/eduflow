@@ -18,6 +18,7 @@ export default function PrincipalInboxPage() {
   const [items, setItems] = useState<Notif[]>([]);
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [broadcast, setBroadcast] = useState({ audience: 'ALL', title: '', body: '' });
   const [busy, setBusy] = useState(false);
 
@@ -49,7 +50,7 @@ export default function PrincipalInboxPage() {
         body: JSON.stringify(broadcast),
       });
       setBroadcast({ ...broadcast, title: '', body: '' });
-      alert(`Sent to ${r.sent} recipients.`);
+      setNotice(`Sent to ${r.sent} recipient${r.sent === 1 ? '' : 's'}.`);
     } catch (e: any) { setErr(e.message); }
     finally { setBusy(false); }
   }
@@ -59,6 +60,7 @@ export default function PrincipalInboxPage() {
       <TopBar title="Inbox & broadcast" eyebrow="Principal portal" />
       <div className="flex-1 p-6 space-y-5 max-w-3xl">
         {err && <Card className="p-4 text-sm text-[var(--color-danger)]">{err}</Card>}
+        {notice && <Card className="p-4 text-sm text-[var(--color-success)]">{notice}</Card>}
 
         <Card variant="solid">
           <CardHeader

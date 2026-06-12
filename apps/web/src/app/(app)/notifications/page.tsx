@@ -22,6 +22,7 @@ export default function NotificationsPage() {
 
   const [items, setItems] = useState<Notif[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<'all' | 'unread'>('all');
 
   const [broadcast, setBroadcast] = useState({ audience: 'ALL', title: '', body: '' });
@@ -61,7 +62,7 @@ export default function NotificationsPage() {
         body: JSON.stringify(broadcast),
       });
       setBroadcast({ ...broadcast, title: '', body: '' });
-      alert('Broadcast sent.');
+      setNotice('Broadcast sent.');
     } catch (e: any) { setErr(e.message); }
     finally { setBusy(false); }
   }
@@ -71,6 +72,7 @@ export default function NotificationsPage() {
       <TopBar title="Notifications" />
       <div className="flex-1 p-6 space-y-5 max-w-3xl">
         {err && <Card className="p-4 text-sm text-[var(--color-danger)]">{err}</Card>}
+        {notice && <Card className="p-4 text-sm text-[var(--color-success)]">{notice}</Card>}
 
         {isAdmin && (
           <Card>

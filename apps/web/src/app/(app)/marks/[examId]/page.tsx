@@ -8,6 +8,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { api, session } from '@/lib/api';
 import { CheckCircle2, Save, Megaphone, Download } from 'lucide-react';
 import { downloadCsv } from '@/lib/export';
+import { ConfirmDialog } from '@/components/ui/Modal';
 
 type ExamDetail = {
   id: string;
@@ -35,6 +36,7 @@ export default function ExamMarksEntry() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [summary, setSummary] = useState<any>(null);
+  const [confirmPublish, setConfirmPublish] = useState(false);
 
   async function loadExam() {
     try {
@@ -111,9 +113,13 @@ export default function ExamMarksEntry() {
     }
   }
 
-  async function publish() {
+  function publish() {
     if (!exam) return;
-    if (!confirm('Publish marks? Parents and students will be notified.')) return;
+    setConfirmPublish(true);
+  }
+
+  async function doPublish() {
+    if (!exam) return;
     setBusy(true);
     try {
       await api(`/exams/${exam.id}/publish`, {
@@ -121,6 +127,7 @@ export default function ExamMarksEntry() {
         token: session.token(),
         subdomain: session.subdomain(),
       });
+      setConfirmPublish(false);
       await loadExam();
     } catch (e: any) {
       setErr(e.message);
@@ -269,6 +276,16 @@ export default function ExamMarksEntry() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmPublish}
+        onClose={() => setConfirmPublish(false)}
+        onConfirm={doPublish}
+        title="Publish marks?"
+        message="Parents and students will be notified that these marks are now available. You can still edit them afterward."
+        confirmLabel="Publish"
+        busy={busy}
+      />
     </>
   );
 }

@@ -36,6 +36,7 @@ export default function TimetablePage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -94,8 +95,11 @@ export default function TimetablePage() {
         token: session.token(), subdomain: session.subdomain(),
         body: JSON.stringify({ periods }),
       });
-      alert('Timetable saved.');
+      setErr(null);
+      setConflicts([]);
+      setNotice('Timetable saved.');
     } catch (e: any) {
+      setNotice(null);
       if (e.payload?.conflicts) setConflicts(e.payload.conflicts);
       setErr(e.message);
     } finally { setBusy(false); }
@@ -105,6 +109,7 @@ export default function TimetablePage() {
     <>
       <TopBar title="Timetable" />
       <div className="flex-1 p-6 space-y-5">
+        {notice && <Card className="p-4 text-sm text-[var(--color-success)]">{notice}</Card>}
         {err && (
           <Card className="p-4 text-sm text-[var(--color-danger)] flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
