@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { SchoolId } from '../common/tenant.decorator';
+import { StartDunningDto } from './dto';
 
 @Controller('dunning')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,8 +16,7 @@ export class DunningController {
   @Roles(Role.SUPER_ADMIN, Role.TEACHER)
   start(
     @SchoolId() schoolId: string,
-    @Body()
-    body: { studentId: string; feePaymentId?: string; amount: number; dueDate: string; toPhone: string },
+    @Body() body: StartDunningDto,
   ) {
     return this.dunning.startRun({
       schoolId,

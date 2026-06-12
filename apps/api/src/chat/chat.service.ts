@@ -51,7 +51,14 @@ export class ChatService {
     });
   }
 
-  async messages(schoolId: string, groupId: string, before?: string, limit = 50) {
+  async messages(
+    schoolId: string,
+    groupId: string,
+    user: { sub: string; role: Role },
+    before?: string,
+    limit = 50,
+  ) {
+    await this.assertCanAccessGroup(schoolId, groupId, user);
     return this.prisma.db.chatMessage.findMany({
       where: {
         schoolId,
@@ -64,13 +71,48 @@ export class ChatService {
     });
   }
 
+  /**
+   * Throws unless the user belongs to the group — either an explicit member or
+   * an auto-member of its section (same rule myGroups() uses for listing). This
+   * is what stops one user from reading or posting into another's conversation,
+   * including private DMs, since RLS only scopes by tenant, not by membership.
+   */
+  private async assertCanAccessGroup(
+    schoolId: string,
+    groupId: string,
+    user: { sub: string; role: Role },
+  ) {
+    if (user.role === Role.SUPER_ADMIN) {
+      const g = await this.prisma.db.chatGroup.findFirst({
+        where: { id: groupId, schoolId },
+        select: { id: true },
+      });
+      if (!g) throw new ForbiddenException('Conversation not found');
+      return;
+    }
+    const g = await this.prisma.db.chatGroup.findFirst({
+      where: {
+        id: groupId,
+        schoolId,
+        OR: [
+          { members: { some: { userId: user.sub } } },
+          ...(await this.autoMembershipFilters(user.sub)),
+        ],
+      },
+      select: { id: true },
+    });
+    if (!g) throw new ForbiddenException('You are not a member of this conversation');
+  }
+
   async send(
     schoolId: string,
     groupId: string,
-    authorId: string,
+    user: { sub: string; role: Role },
     body: string,
   ) {
     if (!body?.trim()) throw new BadRequestException('Empty message');
+    await this.assertCanAccessGroup(schoolId, groupId, user);
+    const authorId = user.sub;
 
     const group = await this.prisma.db.chatGroup.findFirst({
       where: { id: groupId, schoolId },

@@ -6,6 +6,7 @@ import { ConsentService, ConsentPurpose } from '../consent/consent.service';
 import { LlmService } from '../llm/llm.service';
 import type { WhatsAppSendInput } from '../whatsapp/whatsapp-sender.port';
 import { ScoreItem, SheetScore, scoreSheet } from './scoring';
+import { assertStudentAccess, AccessUser } from '../common/student-access';
 
 /**
  * AI Test & Grading. The split that makes this defensible:
@@ -121,12 +122,21 @@ export class GradingService {
     return { ok: true };
   }
 
-  getSheet(id: string) {
-    return this.prisma.db.gradedSheet.findUnique({ where: { id }, include: { reports: true } });
+  async getSheet(id: string, user: AccessUser) {
+    const sheet = await this.prisma.db.gradedSheet.findUnique({
+      where: { id },
+      include: { reports: true },
+    });
+    if (!sheet) throw new NotFoundException('Sheet not found');
+    await assertStudentAccess(this.prisma, user, sheet.studentId);
+    return sheet;
   }
 
-  getReport(id: string) {
-    return this.prisma.db.testReport.findUnique({ where: { id } });
+  async getReport(id: string, user: AccessUser) {
+    const report = await this.prisma.db.testReport.findUnique({ where: { id } });
+    if (!report) throw new NotFoundException('Report not found');
+    await assertStudentAccess(this.prisma, user, report.studentId);
+    return report;
   }
 
   /** Deterministic numbers + weak-topic guidance + AI disclosure. Sarvam-M will phrase the Hinglish later. */

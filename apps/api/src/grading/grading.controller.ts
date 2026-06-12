@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { SchoolId, CurrentUser } from '../common/tenant.decorator';
+import { AccessUser } from '../common/student-access';
 
 @Controller('grading')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -39,12 +40,12 @@ export class GradingController {
   }
 
   @Get('sheet/:id')
-  getSheet(@Param('id') id: string) {
-    return this.grading.getSheet(id);
+  getSheet(@Param('id') id: string, @CurrentUser() user: AccessUser) {
+    return this.grading.getSheet(id, user);
   }
 
   @Get('report/:id')
-  getReport(@Param('id') id: string) {
-    return this.grading.getReport(id);
+  getReport(@Param('id') id: string, @CurrentUser() user: AccessUser) {
+    return this.grading.getReport(id, user);
   }
 }

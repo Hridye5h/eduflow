@@ -7,6 +7,7 @@ import { Roles } from '../auth/roles.decorator';
 import { CurrentUser, SchoolId } from '../common/tenant.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertStudentAccess, AccessUser } from '../common/student-access';
+import { RecordPaymentDto } from './dto';
 
 @Controller('fees')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -47,7 +48,7 @@ export class FeesController {
   record(
     @SchoolId() schoolId: string,
     @Param('id') id: string,
-    @Body() body: { amount: number; txnRef?: string; receiptUrl?: string },
+    @Body() body: RecordPaymentDto,
   ) {
     return this.fees.recordPayment(schoolId, id, body);
   }

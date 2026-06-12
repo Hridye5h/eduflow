@@ -25,10 +25,11 @@ export class ChatController {
   @Get('groups/:id/messages')
   list(
     @SchoolId() schoolId: string,
+    @CurrentUser() user: any,
     @Param('id') id: string,
     @Query('before') before?: string,
   ) {
-    return this.chat.messages(schoolId, id, before);
+    return this.chat.messages(schoolId, id, { sub: user.sub, role: user.role }, before);
   }
 
   @Post('groups/:id/messages')
@@ -38,7 +39,7 @@ export class ChatController {
     @Param('id') id: string,
     @Body() body: { body: string },
   ) {
-    return this.chat.send(schoolId, id, user.sub, body.body);
+    return this.chat.send(schoolId, id, { sub: user.sub, role: user.role }, body.body);
   }
 
   @Patch('groups/:id/student-to-student')
