@@ -44,14 +44,23 @@ export default function PrincipalDashboard() {
   useEffect(() => {
     const t = session.token();
     const s = session.subdomain();
-    Promise.all([
+    // Settle each independently — a single slow/failed report (at-risk and
+    // marks are heavy on the free tier) must not blank the entire dashboard.
+    Promise.allSettled([
       api<Stats>('/school/stats', { token: t, subdomain: s }),
       api<AttendanceTrend>('/reports/attendance?days=30', { token: t, subdomain: s }),
       api<AtRiskStudent[]>('/reports/at-risk', { token: t, subdomain: s }),
       api<any[]>('/reports/marks', { token: t, subdomain: s }),
-    ])
-      .then(([s1, s2, s3, s4]) => { setStats(s1); setAttendance(s2); setAtRisk(s3); setMarks(s4); })
-      .catch((e) => setErr(e.message));
+    ]).then(([r1, r2, r3, r4]) => {
+      if (r1.status === 'fulfilled') setStats(r1.value);
+      if (r2.status === 'fulfilled') setAttendance(r2.value);
+      if (r3.status === 'fulfilled') setAtRisk(r3.value);
+      if (r4.status === 'fulfilled') setMarks(r4.value);
+      const failed = [r1, r2, r3, r4].find((r) => r.status === 'rejected');
+      if (failed && failed.status === 'rejected') {
+        setErr(failed.reason?.message ?? 'Some dashboard data could not be loaded.');
+      }
+    });
   }, []);
 
   const todayPresent = stats?.todayAttendance.find((t) => t.status === 'PRESENT')?._count._all ?? 0;

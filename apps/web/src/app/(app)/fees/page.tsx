@@ -4,8 +4,9 @@ import { Card, CardBody, CardHeader, Stat } from '@/components/ui/Card';
 import { TopBar } from '@/components/layout/TopBar';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { api, session } from '@/lib/api';
-import { Bell, Plus, Receipt, IndianRupee } from 'lucide-react';
+import { Bell, Plus, Receipt, IndianRupee, CheckCircle2 } from 'lucide-react';
 
 type ClassRow = { id: string; label: string };
 type Structure = {
@@ -32,6 +33,9 @@ export default function FeesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: '', amount: '', dueDate: '' });
   const [busy, setBusy] = useState(false);
+  const [pay, setPay] = useState<{ id: string; amount: string } | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function load() {
     if (!classId) return;
@@ -74,26 +78,42 @@ export default function FeesPage() {
     finally { setBusy(false); }
   }
 
-  async function recordPayment(paymentId: string, full: number) {
-    const amount = prompt(`Amount paid (₹)?`, String(full));
-    if (!amount) return;
+  function recordPayment(paymentId: string, full: number) {
+    setErr(null);
+    setNotice(null);
+    setPay({ id: paymentId, amount: String(full) });
+  }
+
+  async function submitPayment() {
+    if (!pay) return;
+    const amount = Number(pay.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErr('Enter a valid amount greater than ₹0.');
+      return;
+    }
+    setPaying(true);
     try {
-      await api(`/fees/payments/${paymentId}`, {
+      await api(`/fees/payments/${pay.id}`, {
         method: 'POST',
         token: session.token(), subdomain: session.subdomain(),
-        body: JSON.stringify({ amount: Number(amount) }),
+        body: JSON.stringify({ amount }),
       });
+      setPay(null);
+      setNotice(`Payment of ₹${amount.toLocaleString()} recorded.`);
       await load();
     } catch (e: any) { setErr(e.message); }
+    finally { setPaying(false); }
   }
 
   async function remindAll() {
+    setErr(null);
+    setNotice(null);
     try {
       const r = await api<{ reminded: number }>('/fees/overdue-remind', {
         method: 'POST',
         token: session.token(), subdomain: session.subdomain(),
       });
-      alert(`Reminders sent to ${r.reminded} parents.`);
+      setNotice(`Reminders sent to ${r.reminded} parent${r.reminded === 1 ? '' : 's'}.`);
     } catch (e: any) { setErr(e.message); }
   }
 
@@ -102,6 +122,11 @@ export default function FeesPage() {
       <TopBar title="Fees" />
       <div className="flex-1 p-6 space-y-5">
         {err && <Card className="p-4 text-sm text-[var(--color-danger)]">{err}</Card>}
+        {notice && (
+          <Card className="p-4 text-sm flex items-center gap-2 text-[var(--color-success)]">
+            <CheckCircle2 className="h-4 w-4" /> {notice}
+          </Card>
+        )}
 
         {summary && (
           <>
@@ -212,6 +237,32 @@ export default function FeesPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        open={!!pay}
+        onClose={() => setPay(null)}
+        title="Record payment"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setPay(null)} disabled={paying}>
+              Cancel
+            </Button>
+            <Button onClick={submitPayment} disabled={paying}>
+              {paying ? 'Recording…' : 'Record payment'}
+            </Button>
+          </>
+        }
+      >
+        <Input
+          label="Amount received (₹)"
+          type="number"
+          value={pay?.amount ?? ''}
+          onChange={(e) => setPay((p) => (p ? { ...p, amount: e.target.value } : p))}
+        />
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">
+          Enter the amount the parent paid — partial payments are allowed.
+        </p>
+      </Modal>
     </>
   );
 }
